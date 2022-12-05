@@ -7,7 +7,6 @@
 #include <string.h>
 #include "../lib/common.h"
 #include "../lib/log.h"
-#include "../lib/list/list.h"
 
 #include "lexer.h"
 
@@ -153,17 +152,17 @@ void nametable::dtor (nametable_t *nametable)
     nametable->capacity = 0;
 }
 
-size_t nametable::insert_name (nametable_t *nametable, const char *name)
+int nametable::insert_name (nametable_t *nametable, const char *name)
 {
     assert (name      != nullptr && "invalid pointer");
     assert (nametable != nullptr && "invalid pointer");
     assert (nametable->names != nullptr && "invalid nametable");
 
-    for (size_t i = 0; i < nametable->size; ++i)
+    for (unsigned int i = 0; i < nametable->size; ++i)
     {
         if (strcmp (name, nametable->names[i]) == 0)
         {
-            return i;
+            return (int) i;
         }
     }
 
@@ -175,7 +174,7 @@ size_t nametable::insert_name (nametable_t *nametable, const char *name)
 
     nametable->names[nametable->size] = strdup (name);
 
-    return nametable->size++;
+    return (int) nametable->size++;
 }
 
 
@@ -252,7 +251,7 @@ static bool tokenize_name (const char **input_str, program_t *program)
 
     ERR_CASE (sscanf (str, "%[a-zA-Z0-9]%n", name_buf, &len) != 1);
     str += len;
-    token->name = (unsigned int) nametable::insert_name (&program->names, name_buf);
+    token->name = nametable::insert_name (&program->names, name_buf);
 
     SUCCESS ();
 }
@@ -355,12 +354,13 @@ static void print_token_func (token_t *token, FILE *stream)
                 case token::op::SUB: EMIT ("OP: -");
                 case token::op::MUL: EMIT ("OP: *");
                 case token::op::DIV: EMIT ("OP: /");
+                case token::op::POW: EMIT ("OP: pow");
 
                 default: assert (0 && "unknown op");
             }
 
         case token::type_t::VAL : EMIT ("VAL: %d",    token->val );
-        case token::type_t::NAME: EMIT ("NAME: #%u",  token->name);
+        case token::type_t::NAME: EMIT ("NAME: #%d",  token->name);
 
         default: assert (0 && "unknown token type");
     }

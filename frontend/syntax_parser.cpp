@@ -51,12 +51,13 @@ static void print_token_func (token_t *token, FILE *stream)
                 case token::op::SUB: EMIT ("OP: -");
                 case token::op::MUL: EMIT ("OP: *");
                 case token::op::DIV: EMIT ("OP: /");
+                case token::op::POW: EMIT ("OP: pow");
 
                 default: assert (0 && "unknown op");
             }
 
         case token::type_t::VAL : EMIT ("VAL: %d",    token->val );
-        case token::type_t::NAME: EMIT ("NAME: #%u",  token->name);
+        case token::type_t::NAME: EMIT ("NAME: #%d",  token->name);
 
         default: assert (0 && "unknown token type");
     }
@@ -160,7 +161,7 @@ static tree::node_t *GetAction (token_t **input_token)
 
     if (isTYPE (NAME))
     {
-        int name =  (int) token->name;
+        int name =  token->name;
         token++;
 
         EXPECT (isKEYWORD (EQ));

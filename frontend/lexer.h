@@ -7,15 +7,15 @@
 struct nametable_t
 {
     char **names;
-    size_t capacity;
-    size_t size;
+    unsigned int capacity;
+    unsigned int size;
 };
 
 namespace nametable {
     void ctor (nametable_t *nametable);
     void dtor (nametable_t *nametable);
 
-    size_t insert_name (nametable_t *nametable, const char *name);
+    int insert_name (nametable_t *nametable, const char *name);
 }
 
 namespace token {
@@ -51,7 +51,7 @@ namespace token {
 struct token_t {
     token::type_t type;
     union {
-        unsigned int   name;
+        int            name;
         int            val;
         token::keyword keyword;
         token::op      op;

@@ -2,6 +2,7 @@
 #include "../lib/file.h"
 #include "lexer.h"
 #include "syntax_parser.h"
+#include "compiler.h"
 
 int main ()
 {
@@ -17,6 +18,8 @@ int main ()
     tree::node_t *head = GetProgram (prog.tokens);
 
     tree::graph_dump (head, "Hueta");
+
+    compiler::compile (head, fopen ("test.asm", "w"));
 
     tree::del_node (head);
     program::dtor (&prog);
