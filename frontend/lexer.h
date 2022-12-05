@@ -1,7 +1,8 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include "../lib/list/list.h"
+#include"stdlib.h"
+#include"stdio.h"
 
 struct nametable_t
 {
