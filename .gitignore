@@ -1,2 +1,5 @@
 *.txt
 dump/
+bin
+*.o
+*.so
