@@ -29,13 +29,30 @@ namespace token {
 
     enum class keyword
     {
-        LET,        //let
-        EQ,         // =
-        BREAK,      // ;
-        PROG_END,   // ~nya~
-        PRINT,      // __builtin_print__
-        L_BRACKET,  // (
-        R_BRACKET   // )
+        LET,            //let
+        ASSIG,          // =
+        BREAK,          // ;
+        PROG_END,       // ~nya~
+        PRINT,          // __builtin_print__
+        INPUT,          // __builtin_input__
+        L_BRACKET,      // (
+        R_BRACKET,      // )
+        OPEN_BLOCK,     // {
+        CLOSE_BLOCK,    // }
+        SEP,            // ,
+        IF,             // if
+        ELSE,           // else
+        WHILE,          // while
+        FN,             // fn
+        EQ,             // ==
+        GE,             // >
+        LE,             // <
+        GT,             // >=
+        LT,             // <=
+        NEQ,            // !=
+        NOT,            // !
+        AND,            // &&
+        OR,             // ||
     };
 
     enum class op
@@ -56,6 +73,8 @@ struct token_t {
         token::keyword keyword;
         token::op      op;
     };
+
+    int line;
 };
 
 struct program_t
@@ -65,6 +84,8 @@ struct program_t
     size_t capacity;
 
     nametable_t  names;
+
+    int line;
 };
 
 namespace program

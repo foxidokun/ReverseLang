@@ -11,6 +11,11 @@
 #include "lexer.h"
 
 // -------------------------------------------------------------------------------------------------
+// TODO
+// -------------------------------------------------------------------------------------------------
+// 1. Валидация имен переменных, известны ли такие в данный момент. Можно как список глобальных + список локальных
+// 2. Валидация кол-ва переменных у функции
+// -------------------------------------------------------------------------------------------------
 
 const int MAX_NAME_LEN = 128;
 
@@ -30,20 +35,30 @@ static void print_token_func (token_t *token, FILE *stream);
 
 // -------------------------------------------------------------------------------------------------
 
-#define SKIP_SPACES()     \
-{                         \
-    while (isspace(*str)) \
-    {                     \
-        str++;            \
-    }                     \
+
+#define SKIP_SPACES()           \
+{                               \
+    while (isspace(*str))       \
+    {                           \
+        if (*str == '\n')       \
+        {                       \
+            program->line++;    \
+        }                       \
+        str++;                  \
+    }                           \
 }
 
-#define ERR_CASE(cond)  \
-{                       \
-    if (cond)           \
-    {                   \
-        return ERROR;   \
-    }                   \
+#define ERR_CASE(cond)                                                          \
+{                                                                               \
+    if (cond)                                                                   \
+    {                                                                           \
+        FILE *__log_stream_48de = get_log_stream();                             \
+        LOG (log::ERR, "Bad token at line %d after token", program->line+1);    \
+        fprintf (__log_stream_48de, "\t--> ");                                  \
+        print_token_func (&program->tokens[program->size], __log_stream_48de);  \
+        fprintf (__log_stream_48de, " <--\n");                                  \
+        return ERROR;                                                           \
+    }                                                                           \
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -81,11 +96,15 @@ int program::tokenize (const char *const str_beg, size_t size, program_t *progra
 
     while (str - str_beg < size)
     {
-        if (isalpha (*str) || (*str == '=' || *str == '(' || *str == ')' || *str == ';' || *str == '_' || *str == '~'))
+        if (isalpha (*str) || (*str == '=' || *str == '(' || *str == ')' || *str == '{' || *str == '}' || *str == ';' || *str == ',' || *str == '_' || *str == '~'))
         {
             if ( !tokenize_keyword(&str, program) )
             {
                 ERR_CASE( !tokenize_name (&str, program) );
+            }
+            else 
+            {
+                ERR_CASE ( !(isspace(*str) || *str == ';'));
             }
         }
         else if (isdigit (*str))
@@ -97,10 +116,7 @@ int program::tokenize (const char *const str_beg, size_t size, program_t *progra
             ERR_CASE( !tokenize_op (&str, program) );
         }
 
-        ERR_CASE (!(isspace(*str) || *str == ';'));
         SKIP_SPACES ();
-
-        dump_tokens (program, stdout);
     }
 
     return 0;
@@ -219,14 +235,33 @@ static bool tokenize_keyword (const char **input_str, program_t *program)
     const char *str = *input_str;
     token_t *token  = program->tokens + program->size;
     token->type     = token::type_t::KEYWORD;
+    token->line     = program->line;
 
     TRY_KEYWORD (LET,          "let")
-    TRY_KEYWORD (EQ,           "=")
+    TRY_KEYWORD (EQ,           "==")
+    TRY_KEYWORD (ASSIG,        "=")
     TRY_KEYWORD (BREAK,        ";")
     TRY_KEYWORD (PROG_END,     "~nya~")
     TRY_KEYWORD (PRINT,        "__builtin_print__")
+    TRY_KEYWORD (INPUT,        "__builtin_input__")
     TRY_KEYWORD (L_BRACKET,    "(")
     TRY_KEYWORD (R_BRACKET,    ")")
+    TRY_KEYWORD (OPEN_BLOCK,   "{")
+    TRY_KEYWORD (CLOSE_BLOCK,  "}")
+    TRY_KEYWORD (SEP,          ",")
+    TRY_KEYWORD (IF,           "if")
+    TRY_KEYWORD (ELSE,         "else")
+    TRY_KEYWORD (WHILE,        "while")
+    TRY_KEYWORD (FN,           "fn")
+    TRY_KEYWORD (GE,           "ge")
+    TRY_KEYWORD (LE,           "le")
+    TRY_KEYWORD (GT,           "gt")
+    TRY_KEYWORD (LT,           "lt")
+    TRY_KEYWORD (NEQ,          "neq")
+    TRY_KEYWORD (NOT,          "not")
+    TRY_KEYWORD (AND,          "and")
+    TRY_KEYWORD (OR,           "or")
+
     /*else*/ {
         return false;
     }
@@ -245,11 +280,12 @@ static bool tokenize_name (const char **input_str, program_t *program)
     const char *str = *input_str;
     token_t *token  = program->tokens + program->size;
     token->type     = token::type_t::NAME;
+    token->line     = program->line;
 
     char name_buf[MAX_NAME_LEN] = "";
     int len = 0;
 
-    ERR_CASE (sscanf (str, "%[a-zA-Z0-9]%n", name_buf, &len) != 1);
+    ERR_CASE (sscanf (str, "%[a-zA-Z0-9_]%n", name_buf, &len) != 1);
     str += len;
     token->name = nametable::insert_name (&program->names, name_buf);
 
@@ -267,6 +303,7 @@ static bool tokenize_val (const char **input_str, program_t *program)
     const char *str = *input_str;
     token_t *token  = program->tokens + program->size;
     token->type     = token::type_t::VAL;
+    token->line     = program->line;
 
     int val_buf = 0;
     int len     = 0;
@@ -289,6 +326,7 @@ static bool tokenize_op (const char **input_str, program_t *program)
     const char *str = *input_str;
     token_t *token  = program->tokens + program->size;
     token->type     = token::type_t::OP;
+    token->line     = program->line;
 
     switch (*str)
     {
@@ -335,16 +373,32 @@ static void print_token_func (token_t *token, FILE *stream)
         case token::type_t::KEYWORD:
             switch (token->keyword)
             {
-                case token::keyword::LET:       EMIT ("KW: let");
-                case token::keyword::EQ:        EMIT ("KW: =");
-                case token::keyword::BREAK:     EMIT ("KW: BREAK");
-                case token::keyword::PROG_END:  EMIT ("KW: ~nya~");
-                case token::keyword::PRINT:     EMIT ("KW: //print//");
-                case token::keyword::L_BRACKET: EMIT ("KW: (");
-                case token::keyword::R_BRACKET: EMIT ("KW: )");
+                case token::keyword::LET:         EMIT ("KW: let");
+                case token::keyword::ASSIG:       EMIT ("KW: :=");
+                case token::keyword::BREAK:       EMIT ("KW: BREAK");
+                case token::keyword::PROG_END:    EMIT ("KW: ~nya~");
+                case token::keyword::PRINT:       EMIT ("KW: //print//");
+                case token::keyword::INPUT:       EMIT ("KW: //input//");
+                case token::keyword::L_BRACKET:   EMIT ("KW: (");
+                case token::keyword::R_BRACKET:   EMIT ("KW: )");
+                case token::keyword::IF:          EMIT ("KW: if");
+                case token::keyword::EQ:          EMIT ("KW: ==");
+                case token::keyword::OPEN_BLOCK:  EMIT ("KW: {");
+                case token::keyword::CLOSE_BLOCK: EMIT ("KW: }");
+                case token::keyword::SEP:         EMIT ("KW: SEP");
+                case token::keyword::ELSE:        EMIT ("KW: ELSE");
+                case token::keyword::WHILE:       EMIT ("KW: WHILE");
+                case token::keyword::FN:          EMIT ("KW: FN");
+                case token::keyword::GE:          EMIT ("KW: >=");
+                case token::keyword::LE:          EMIT ("KW: <=");
+                case token::keyword::GT:          EMIT ("KW: > ");
+                case token::keyword::LT:          EMIT ("KW: < ");
+                case token::keyword::NEQ:         EMIT ("KW: !=");
+                case token::keyword::NOT:         EMIT ("KW: NOT");
+                case token::keyword::AND:         EMIT ("KW: &&");
+                case token::keyword::OR:          EMIT ("KW: ||");
 
                 default: assert (0 && "unknown keyword");
-
             }
 
         case token::type_t::OP:

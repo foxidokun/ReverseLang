@@ -1,67 +1,25 @@
 #include <assert.h>
 #include <cstdio>
+#include "../lib/log.h"
 #include "lexer.h"
 #include "syntax_parser.h"
 
-// Program        ::= Action (KEYWORD::BREAK Action)* PROG_END
-// Action         ::= ((KEYWORD::LET) NAME KEYWORD::EQ | KEYWORD::PRINT) Expression
-// Expression     ::= AddOperand  ([+-] AddOperand  )*
+// Program        ::= (SubProgram | Func)* PROG_END
+// Func           ::= FN NAME L_BRACKET (NAME (SEP NAME)) R_BRACKET OPEN_BLOCK Subprogram CLOSE_BLOCK
+// SubProgram     ::= (FlowBlock)+
+// FlowBlock      ::= IfBlock | WhileBlock | OPEN_BLOCK Body CLOSE_BLOCK | Body
+// WhileBlock     ::= WHILE L_BRACKET Expression R_BRACKET OPEN_BLOCK Body CLOSE_BLOCK
+// IfBlock        ::= IF    L_BRACKET Expression R_BRACKET OPEN_BLOCK Body CLOSE_BLOCK (ELSE OPEN_BLOCK Body CLOSE_BLOCK)
+// Body           ::= (Line)+
+// Line           ::= (LET NAME =) Expression BREAK
+// Expression     ::= NAME = Expresssion | PRINT Expression | AddOperand  ([+-] AddOperand)* 
 // AddOperand     ::= MulOperand  ([/ *] MulOperand )*
 // MulOperand     ::= GeneralOperand ([^]  GeneralOperand)*
 // GeneralOperand ::= L_BRACKET Expression R_BRACKET | Quant
-// Quant          ::= (VAR | VAL)
+// Quant          ::= VAR | VAL | INPUT | NAME L_BRACKET (Expression (SEM Expression)) R_BRACKET
 
 using tree::node_type_t;
 using tree::op_t;
-
-#include "lexer.h"
-
-#define EMIT(str, ...)                      \
-{                                           \
-    fprintf (stream, str, ##__VA_ARGS__);   \
-    return;                                 \
-}
-
-static void print_token_func (token_t *token, FILE *stream)
-{
-    assert (token  != nullptr && "invalid pointer");
-    assert (stream != nullptr && "invalid pointer");
-
-    switch (token->type)
-    {
-        case token::type_t::KEYWORD:
-            switch (token->keyword)
-            {
-                case token::keyword::LET:       EMIT ("KW: let");
-                case token::keyword::EQ:        EMIT ("KW: =");
-                case token::keyword::BREAK:     EMIT ("KW: BREAK");
-                case token::keyword::PROG_END:  EMIT ("KW: ~nya~");
-                case token::keyword::PRINT:     EMIT ("KW: //print//");
-                case token::keyword::L_BRACKET: EMIT ("KW: (");
-                case token::keyword::R_BRACKET: EMIT ("KW: )");
-
-                default: assert (0 && "unknown keyword");
-
-            }
-
-        case token::type_t::OP:
-            switch (token->op)
-            {
-                case token::op::ADD: EMIT ("OP: +");
-                case token::op::SUB: EMIT ("OP: -");
-                case token::op::MUL: EMIT ("OP: *");
-                case token::op::DIV: EMIT ("OP: /");
-                case token::op::POW: EMIT ("OP: pow");
-
-                default: assert (0 && "unknown op");
-            }
-
-        case token::type_t::VAL : EMIT ("VAL: %d",    token->val );
-        case token::type_t::NAME: EMIT ("NAME: #%d",  token->name);
-
-        default: assert (0 && "unknown token type");
-    }
-}
 
 // -------------------------------------------------------------------------------------------------
 
@@ -70,17 +28,12 @@ static void print_token_func (token_t *token, FILE *stream)
     assert (*input_token != nullptr);   \
                                         \
     token_t *token      = *input_token; \
-    tree::node_t *node  = nullptr;       \
-    printf ("Func start: %s with token ", __func__);\
-    print_token_func (token, stdout);\
-    printf ("\n");\
+    tree::node_t *node  = nullptr;      \
+    
 
 #define SUCCESS()               \
 {                               \
     *input_token = token;       \
-    printf ("Func success: %s with token ", __func__);\
-    print_token_func (token, stdout);\
-    printf ("\n");\
     return node;                \
 }
 
@@ -88,22 +41,26 @@ static void print_token_func (token_t *token, FILE *stream)
 {                               \
     if ((expr) == nullptr)      \
     {                           \
-        printf (#expr " CHECK FAILED\n");\
         del_node (node);        \
         return nullptr;         \
     }                           \
 }
 
+
 #define EXPECT(expr)            \
 {                               \
     if (!(expr))                \
     {                           \
-        printf (#expr " EXPECTATION FAILED, token: "); \
-        print_token_func (token, stdout);\
-        printf ("\n");\
+        LOG (log::INF, "Syntax error on line %d: expected " #expr, token->line) \
         del_node (node);        \
         return nullptr;         \
     }                           \
+}
+
+#define CHECK(expr)     \
+{                       \
+    EXPECT (expr);      \
+    token++;            \
 }
 
 #define isTYPE(expected_type) (token->type == token::type_t::expected_type)
@@ -111,82 +68,213 @@ static void print_token_func (token_t *token, FILE *stream)
 #define isKEYWORD(expected_kw) (isTYPE(KEYWORD) && token->keyword == token::keyword::expected_kw)
 #define isOP(expected_op)      (isTYPE(  OP   ) && token->op      == token::op::expected_op)
 
+#define isNEXT_KEYWORD(expected_kw) ((token+1)->type    == token::type_t::KEYWORD && \
+                                     (token+1)->keyword == token::keyword::expected_kw)
 // -------------------------------------------------------------------------------------------------
 
-static tree::node_t *GetAction          (token_t **input_token);
-static tree::node_t *GetExpression      (token_t **input_token);
-static tree::node_t *GetAddOperand      (token_t **input_token);
-static tree::node_t *GetMulOperand      (token_t **input_token);
-static tree::node_t *GetGeneralOperand  (token_t **input_token);
-static tree::node_t *GetQuant           (token_t **input_token);
+static tree::node_t *GetFunc           (token_t **input_token);
+static tree::node_t *GetSubProgram     (token_t **input_token);
+static tree::node_t *GetFlowBlock      (token_t **input_token);
+static tree::node_t *GetWhileBlock     (token_t **input_token);
+static tree::node_t *GetIfBlock        (token_t **input_token);
+static tree::node_t *GetBody           (token_t **input_token);
+static tree::node_t *GetLine           (token_t **input_token);
+static tree::node_t *GetExpression     (token_t **input_token);
+static tree::node_t *GetAddOperand     (token_t **input_token);
+static tree::node_t *GetMulOperand     (token_t **input_token);
+static tree::node_t *GetGeneralOperand (token_t **input_token);
+static tree::node_t *GetQuant          (token_t **input_token);
 
 // -------------------------------------------------------------------------------------------------
 
 tree::node_t *GetProgram (token_t *token)
 {
     assert (token != nullptr && "invalid pointer");
+
     tree::node_t *node     = nullptr;
     tree::node_t *node_rhs = nullptr;
 
-    TRY (node = GetAction (&token));
-
-    while (isKEYWORD (BREAK))
+    while (true)
     {
-        token++;
-
-        if (!isKEYWORD (PROG_END)) {
-            TRY (node_rhs = GetAction (&token));
-            node = tree::new_node (node_type_t::FICTIOUS, 0, node, node_rhs);
-        } else {
-            return node;
+        if ((node_rhs = GetSubProgram (&token)) == nullptr)
+        {
+            if ((node_rhs = GetFunc (&token)) == nullptr)
+            {
+                break;
+            }
         }
+
+        assert (node_rhs != nullptr && "Unexpected magic");
+
+        node = tree::new_node (node_type_t::FICTIOUS, 0, node, node_rhs);
     }
 
-    return nullptr;
+    CHECK (isKEYWORD (PROG_END));
+
+    return node;
 }
 
 // -------------------------------------------------------------------------------------------------
 
-static tree::node_t *GetAction (token_t **input_token)
+static tree::node_t *GetFunc (token_t **input_token)
 {
     PREPARE();
+    tree::node_t* arg_node = nullptr;
+
+    CHECK (isKEYWORD (FN));
+    EXPECT (isTYPE(NAME));
+    int func_name = token->name;
+    token++;
+
+    CHECK (isKEYWORD (L_BRACKET));
+
+    if (isTYPE (NAME)) {
+        arg_node = tree::new_node (node_type_t::VAR, token->name);
+        token++;
+
+        while (isKEYWORD (SEP)) {
+            token++;
+            arg_node = tree::new_node (node_type_t::FICTIOUS, 0, arg_node, tree::new_node (node_type_t::VAR, token->name));
+            token++;
+        }
+    }
+
+    CHECK (isKEYWORD(R_BRACKET));
+    CHECK (isKEYWORD (OPEN_BLOCK));
+    node = GetSubProgram (&token);
+    CHECK (isKEYWORD (CLOSE_BLOCK));
+
+    node = tree::new_node (node_type_t::FUNC_DEF, func_name, arg_node, node);
+
+    SUCCESS();
+}
+
+static tree::node_t *GetSubProgram (token_t **input_token)
+{
+    PREPARE();
+    tree::node_t *node_rhs = nullptr;
+
+    TRY (node = GetFlowBlock (&token));
+
+    while ((node_rhs = GetFlowBlock (&token)) != nullptr)
+    {
+        node = tree::new_node (node_type_t::FICTIOUS, 0, node, node_rhs);
+    }
+
+    SUCCESS ();
+}
+
+static tree::node_t *GetFlowBlock (token_t **input_token)
+{
+    PREPARE();
+
+    if ((node = GetIfBlock (&token)) == nullptr) {
+        if ((node = GetWhileBlock (&token)) == nullptr) {
+            if (isKEYWORD (OPEN_BLOCK)) {
+                token++;
+                TRY (node = GetBody (&token));
+                CHECK (isKEYWORD(CLOSE_BLOCK));
+            } else {
+                TRY (node = GetBody (&token));
+            }
+        }
+    }
+
+    SUCCESS ();
+}
+
+static tree::node_t *GetWhileBlock (token_t **input_token)
+{
+    PREPARE();
+    tree::node_t *cond = nullptr;
+
+    CHECK (isKEYWORD (WHILE));
+    CHECK (isKEYWORD (L_BRACKET));
+
+    TRY (cond = GetExpression (&token));
+    
+    CHECK (isKEYWORD (R_BRACKET));
+    CHECK (isKEYWORD (OPEN_BLOCK));
+
+    TRY (node = GetBody (&token));
+
+    CHECK (isKEYWORD (CLOSE_BLOCK));
+
+    SUCCESS();
+}
+
+static tree::node_t *GetIfBlock (token_t **input_token)
+{
+    PREPARE ();
+    tree::node_t *cond     = nullptr;
+    tree::node_t *node_rhs = nullptr;
+
+    CHECK (isKEYWORD (IF));
+    CHECK (isKEYWORD (L_BRACKET));
+
+    TRY (cond = GetExpression (&token));
+
+    CHECK (isKEYWORD (R_BRACKET));
+    CHECK (isKEYWORD (OPEN_BLOCK));
+
+    TRY (node = GetBody (&token));
+
+    CHECK (isKEYWORD (CLOSE_BLOCK));
+
+    if (isKEYWORD (ELSE))
+    {
+        token++;
+
+        CHECK (isKEYWORD (OPEN_BLOCK));
+
+        TRY (node_rhs = GetBody (&token));
+
+        CHECK (isKEYWORD (CLOSE_BLOCK));
+
+        node = tree::new_node (node_type_t::ELSE, 0, node, node_rhs);
+    }
+
+    node = new_node (node_type_t::IF, 0, cond, node);
+
+    SUCCESS ();
+}
+
+static tree::node_t *GetBody (token_t **input_token)
+{
+    PREPARE ();
+    tree::node_t *next_line = nullptr;
+
+    TRY (node = GetLine (&token));
+
+    while ((next_line = GetLine (&token)) != nullptr)
+    {
+        node = tree::new_node (node_type_t::FICTIOUS, 0, node, next_line);
+    }
+
+    SUCCESS();
+}
+
+static tree::node_t *GetLine (token_t **input_token)
+{
+    PREPARE ();
+
+    tree::node_t *node_rhs = nullptr;
 
     if (isKEYWORD (LET))
     {
         token++;
-        EXPECT (isTYPE(NAME)); // No token++ for next if
 
-        node = tree::new_node (node_type_t::VAR_DEF, token->name);
-    }
-
-    if (isTYPE (NAME))
-    {
-        int name =  token->name;
+        EXPECT (isTYPE (NAME));
+        node = tree::new_node (tree::node_type_t::VAR_DEF, token->name);
         token++;
 
-        EXPECT (isKEYWORD (EQ));
-        token++;
-
-        tree::node_t *node_rhs = nullptr;
-        TRY (node_rhs = GetExpression (&token));
-
-        node_rhs = tree::new_node (node_type_t::OP, op_t::ASSIG,
-                                    tree::new_node (node_type_t::VAR, name),
-                                    node_rhs
-                                    );
-
-        node = tree::new_node (node_type_t::FICTIOUS, 0, node, node_rhs);
-    }
-    else
-    {
-        EXPECT (isKEYWORD (PRINT));
-        token++;
-
-        TRY (node = GetExpression (&token));
-
-        node = tree::new_node (node_type_t::OP, op_t::OUTPUT, nullptr, node);
+        CHECK (isKEYWORD (ASSIG));
     }
 
+    TRY (node_rhs = GetExpression (&token));
+    node = tree::new_node (node_type_t::FICTIOUS, 0, node, node_rhs);
+
+    CHECK (isKEYWORD (BREAK));
     SUCCESS ();
 }
 
@@ -195,18 +283,42 @@ static tree::node_t *GetExpression (token_t **input_token)
     PREPARE ();
 
     tree::node_t *node_rhs = nullptr;
-    op_t op = tree::op_t::INPUT; // Poison value
 
-    TRY (node = GetAddOperand (&token));
-
-    while (isOP(ADD) || isOP(SUB))
+    if (isTYPE (NAME) && isNEXT_KEYWORD (ASSIG))
     {
-        op = isOP (ADD) ? op_t::ADD : op_t::SUB;
+        node = tree::new_node (tree::node_type_t::VAR, token->name);
         token++;
 
-        TRY (node_rhs = GetAddOperand (&token));
+        assert (isKEYWORD (ASSIG) && "Unexpected magic: broken if condition");
+        token++;
 
-        node = tree::new_node (node_type_t::OP, op, node, node_rhs);
+        TRY (node_rhs = GetExpression (&token));
+
+        node = tree::new_node (node_type_t::OP, op_t::ASSIG, node, node_rhs);
+    }
+    else if (isKEYWORD (PRINT))
+    {
+        token++;
+
+        TRY (node = GetExpression (&token));
+
+        node = tree::new_node (node_type_t::OP, op_t::OUTPUT, nullptr, node);
+    }
+    else
+    {
+        op_t op = tree::op_t::INPUT; // Poison value
+
+        TRY (node = GetAddOperand (&token));
+
+        while (isOP(ADD) || isOP(SUB))
+        {
+            op = isOP (ADD) ? op_t::ADD : op_t::SUB;
+            token++;
+
+            TRY (node_rhs = GetAddOperand (&token));
+
+            node = tree::new_node (node_type_t::OP, op, node, node_rhs);
+        }
     }
 
     SUCCESS();
@@ -265,8 +377,7 @@ static tree::node_t *GetGeneralOperand (token_t **input_token)
         token++;
         assert (node != nullptr);
 
-        EXPECT (isKEYWORD (R_BRACKET));
-        token++;
+        CHECK (isKEYWORD (R_BRACKET));
     }
     else 
     {
@@ -280,7 +391,7 @@ static tree::node_t *GetQuant (token_t **input_token)
 {
     PREPARE();
 
-    if (isTYPE(NAME))
+    if (isTYPE(NAME) && !isNEXT_KEYWORD (L_BRACKET))
     {
         node = tree::new_node (tree::node_type_t::VAR, token->name);
         token++;
@@ -292,6 +403,35 @@ static tree::node_t *GetQuant (token_t **input_token)
         token++;
         SUCCESS ();
     }
+    else if (isTYPE (NAME))
+    {
+        int name = token->name;
+        tree::node_t *node_rhs = nullptr;
+        token++;
+
+        CHECK (isKEYWORD (L_BRACKET));
+        TRY (node = GetExpression (&token));
+
+        while (isKEYWORD (SEP))
+        {
+            token++;
+
+            TRY (node_rhs = GetExpression (&token));
+            node = tree::new_node (node_type_t::FICTIOUS, 0, node, node_rhs);
+        }
+
+        CHECK (isKEYWORD (R_BRACKET));
+
+        node = tree::new_node (node_type_t::FUNC_CALL, name, nullptr, node);
+        SUCCESS ();
+    }
+    else if (isKEYWORD (INPUT))
+    {
+        token++;
+        node = tree::new_node (node_type_t::OP, op_t::INPUT);
+        SUCCESS ();
+    }
     
+    EXPECT (0 && "Invalid Quant");
     return nullptr;
 }

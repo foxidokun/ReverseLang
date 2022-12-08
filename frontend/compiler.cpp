@@ -140,11 +140,19 @@ static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
 
         case tree::op_t::OUTPUT:
             subtree_compile (compiler, node->right, stream);
+            EMIT (" ");
+            EMIT ("pop  rax");
+            EMIT ("push rax");
+            EMIT ("push rax");
             EMIT ("out");
             break;
 
         case tree::op_t::ASSIG:
             subtree_compile (compiler, node->right, stream);
+            EMIT (" ");
+            EMIT ("pop  rax");
+            EMIT ("push rax");
+            EMIT ("push rax");
             EMIT ("pop [rdx+%d] ; Assig", get_offset (compiler, node->left->data));
             break;
 
