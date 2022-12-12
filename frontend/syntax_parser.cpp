@@ -4,19 +4,20 @@
 #include "lexer.h"
 #include "syntax_parser.h"
 
-// Program        ::= (SubProgram | Func)* PROG_END
-// Func           ::= FN NAME L_BRACKET (NAME (SEP NAME)) R_BRACKET OPEN_BLOCK Subprogram CLOSE_BLOCK
+// Program        ::= PROG_BEG (SubProgram | Func)* PROG_END
+// Func           ::= R_BRACKET OPEN_BLOCK Subprogram CLOSE_BLOCK L_BRACKET (NAME (SEP NAME)) NAME FN
 // SubProgram     ::= (FlowBlock)+
 // FlowBlock      ::= IfBlock | WhileBlock | OPEN_BLOCK Body CLOSE_BLOCK | Body
-// WhileBlock     ::= WHILE L_BRACKET Expression R_BRACKET OPEN_BLOCK Body CLOSE_BLOCK
-// IfBlock        ::= IF    L_BRACKET Expression R_BRACKET OPEN_BLOCK Body CLOSE_BLOCK (ELSE OPEN_BLOCK Body CLOSE_BLOCK)
+// WhileBlock     ::= OPEN_BLOCK Body CLOSE_BLOCK L_BRACKET Expression R_BRACKET WHILE
+// IfBlock        ::= (OPEN_BLOCK Body CLOSE_BLOCK ELSE) OPEN_BLOCK Body CLOSE_BLOCK L_BRACKET Expression R_BRACKET IF
 // Body           ::= (Line)+
-// Line           ::= (LET NAME =) Expression BREAK
-// Expression     ::= NAME = Expresssion | PRINT Expression | AddOperand  ([+-] AddOperand)* 
+// Line           ::= Expression (= NAME LET) BREAK
+// Expression     ::= Expresssion = NAME | Expression PRINT | CompOperand (<=> CompOperand)
+// CompOperand    ::= AddOperand  ([+-] AddOperand)* 
 // AddOperand     ::= MulOperand  ([/ *] MulOperand )*
 // MulOperand     ::= GeneralOperand ([^]  GeneralOperand)*
 // GeneralOperand ::= L_BRACKET Expression R_BRACKET | Quant
-// Quant          ::= VAR | VAL | INPUT | NAME L_BRACKET (Expression (SEM Expression)) R_BRACKET
+// Quant          ::= VAR | VAL | INPUT | L_BRACKET (Expression (SEM Expression)) R_BRACKET NAME
 
 using tree::node_type_t;
 using tree::op_t;
@@ -34,6 +35,9 @@ using tree::op_t;
 #define SUCCESS()               \
 {                               \
     *input_token = token;       \
+    printf ("success in %s with last node: ", __func__);\
+    program::print_token_func (token, stdout);          \
+    printf ("\n");              \
     return node;                \
 }
 
@@ -52,6 +56,8 @@ using tree::op_t;
     if (!(expr))                \
     {                           \
         LOG (log::INF, "Syntax error on line %d: expected " #expr, token->line) \
+        program::print_token_func (token, stdout);                              \
+        printf ("\n");          \
         del_node (node);        \
         return nullptr;         \
     }                           \
@@ -80,6 +86,7 @@ static tree::node_t *GetIfBlock        (token_t **input_token);
 static tree::node_t *GetBody           (token_t **input_token);
 static tree::node_t *GetLine           (token_t **input_token);
 static tree::node_t *GetExpression     (token_t **input_token);
+static tree::node_t *GetCompOperand    (token_t **input_token);
 static tree::node_t *GetAddOperand     (token_t **input_token);
 static tree::node_t *GetMulOperand     (token_t **input_token);
 static tree::node_t *GetGeneralOperand (token_t **input_token);
@@ -265,10 +272,8 @@ static tree::node_t *GetLine (token_t **input_token)
         token++;
 
         EXPECT (isTYPE (NAME));
-        node = tree::new_node (tree::node_type_t::VAR_DEF, token->name);
-        token++;
-
-        CHECK (isKEYWORD (ASSIG));
+        node = tree::new_node (node_type_t::VAR_DEF, token->name);
+        EXPECT (isNEXT_KEYWORD (ASSIG));
     }
 
     TRY (node_rhs = GetExpression (&token));
@@ -306,24 +311,37 @@ static tree::node_t *GetExpression (token_t **input_token)
     }
     else
     {
-        op_t op = tree::op_t::INPUT; // Poison value
+        TRY (node = GetCompOperand (&token));
 
-        TRY (node = GetAddOperand (&token));
+        EXPECT (isKEYWORD (GE) || isKEYWORD (LE) || isKEYWORD (GT) || isKEYWORD (LT));
+        token::keyword comp_op = token->keyword;
 
-        while (isOP(ADD) || isOP(SUB))
-        {
-            op = isOP (ADD) ? op_t::ADD : op_t::SUB;
-            token++;
-
-            TRY (node_rhs = GetAddOperand (&token));
-
-            node = tree::new_node (node_type_t::OP, op, node, node_rhs);
-        }
+        
     }
 
     SUCCESS();
 }
 
+static tree::node_t *GetCompOperand (token_t **input_token)
+{
+    PREPARE();
+    op_t op = tree::op_t::INPUT; // Poison value
+    tree::node_t *node_rhs = nullptr;
+
+    TRY (node = GetAddOperand (&token));
+
+    while (isOP(ADD) || isOP(SUB))
+    {
+        op = isOP (ADD) ? op_t::ADD : op_t::SUB;
+        token++;
+
+        TRY (node_rhs = GetAddOperand (&token));
+
+        node = tree::new_node (node_type_t::OP, op, node, node_rhs);
+    }
+
+    SUCCESS();
+}
 
 static tree::node_t *GetAddOperand (token_t **input_token)
 {

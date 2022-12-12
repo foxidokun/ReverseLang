@@ -31,8 +31,6 @@ static bool tokenize_op      (const char **str, program_t *program);
 
 static void realloc_tokens (program_t *program);
 
-static void print_token_func (token_t *token, FILE *stream);
-
 // -------------------------------------------------------------------------------------------------
 
 
@@ -57,6 +55,7 @@ static void print_token_func (token_t *token, FILE *stream);
         fprintf (__log_stream_48de, "\t--> ");                                  \
         print_token_func (&program->tokens[program->size], __log_stream_48de);  \
         fprintf (__log_stream_48de, " <--\n");                                  \
+        printf ("str: [%s]", str);                                              \
         return ERROR;                                                           \
     }                                                                           \
 }
@@ -96,7 +95,7 @@ int program::tokenize (const char *const str_beg, size_t size, program_t *progra
 
     while (str - str_beg < size)
     {
-        if (isalpha (*str) || (*str == '=' || *str == '(' || *str == ')' || *str == '{' || *str == '}' || *str == ';' || *str == ',' || *str == '_' || *str == '~'))
+        if (isalpha (*str) || (*str == '=' || *str == '(' || *str == ')' || *str == '{' || *str == '}' || *str == ';' || *str == ',' || *str == '_' || *str == '~' || *str == '<' || *str == '>' || *str == '!' || *str == '&' || *str == '|'))
         {
             if ( !tokenize_keyword(&str, program) )
             {
@@ -193,6 +192,70 @@ int nametable::insert_name (nametable_t *nametable, const char *name)
     return (int) nametable->size++;
 }
 
+// -------------------------------------------------------------------------------------------------
+
+#define EMIT(str, ...)                      \
+{                                           \
+    fprintf (stream, str, ##__VA_ARGS__);   \
+    return;                                 \
+}
+
+void print_token_func (token_t *token, FILE *stream)
+{
+    assert (token  != nullptr && "invalid pointer");
+    assert (stream != nullptr && "invalid pointer");
+
+    switch (token->type)
+    {
+        case token::type_t::KEYWORD:
+            switch (token->keyword)
+            {
+                case token::keyword::LET:         EMIT ("KW: let");
+                case token::keyword::ASSIG:       EMIT ("KW: :=");
+                case token::keyword::BREAK:       EMIT ("KW: BREAK");
+                case token::keyword::PROG_END:    EMIT ("KW: ~nya~");
+                case token::keyword::PRINT:       EMIT ("KW: //print//");
+                case token::keyword::INPUT:       EMIT ("KW: //input//");
+                case token::keyword::L_BRACKET:   EMIT ("KW: (");
+                case token::keyword::R_BRACKET:   EMIT ("KW: )");
+                case token::keyword::IF:          EMIT ("KW: if");
+                case token::keyword::EQ:          EMIT ("KW: ==");
+                case token::keyword::OPEN_BLOCK:  EMIT ("KW: {");
+                case token::keyword::CLOSE_BLOCK: EMIT ("KW: }");
+                case token::keyword::SEP:         EMIT ("KW: SEP");
+                case token::keyword::ELSE:        EMIT ("KW: ELSE");
+                case token::keyword::WHILE:       EMIT ("KW: WHILE");
+                case token::keyword::FN:          EMIT ("KW: FN");
+                case token::keyword::GE:          EMIT ("KW: >=");
+                case token::keyword::LE:          EMIT ("KW: <=");
+                case token::keyword::GT:          EMIT ("KW: > ");
+                case token::keyword::LT:          EMIT ("KW: < ");
+                case token::keyword::NEQ:         EMIT ("KW: !=");
+                case token::keyword::NOT:         EMIT ("KW: NOT");
+                case token::keyword::AND:         EMIT ("KW: &&");
+                case token::keyword::OR:          EMIT ("KW: ||");
+
+                default: assert (0 && "unknown keyword");
+            }
+
+        case token::type_t::OP:
+            switch (token->op)
+            {
+                case token::op::ADD: EMIT ("OP: +");
+                case token::op::SUB: EMIT ("OP: -");
+                case token::op::MUL: EMIT ("OP: *");
+                case token::op::DIV: EMIT ("OP: /");
+                case token::op::POW: EMIT ("OP: pow");
+
+                default: assert (0 && "unknown op");
+            }
+
+        case token::type_t::VAL : EMIT ("VAL: %d",    token->val );
+        case token::type_t::NAME: EMIT ("NAME: #%d",  token->name);
+
+        default: assert (0 && "unknown token type");
+    }
+}
 
 // -------------------------------------------------------------------------------------------------
 // PRIVATE SECTION
@@ -253,14 +316,14 @@ static bool tokenize_keyword (const char **input_str, program_t *program)
     TRY_KEYWORD (ELSE,         "else")
     TRY_KEYWORD (WHILE,        "while")
     TRY_KEYWORD (FN,           "fn")
-    TRY_KEYWORD (GE,           "ge")
-    TRY_KEYWORD (LE,           "le")
-    TRY_KEYWORD (GT,           "gt")
-    TRY_KEYWORD (LT,           "lt")
-    TRY_KEYWORD (NEQ,          "neq")
-    TRY_KEYWORD (NOT,          "not")
-    TRY_KEYWORD (AND,          "and")
-    TRY_KEYWORD (OR,           "or")
+    TRY_KEYWORD (GE,           ">=")
+    TRY_KEYWORD (LE,           "<=")
+    TRY_KEYWORD (GT,           ">")
+    TRY_KEYWORD (LT,           "<")
+    TRY_KEYWORD (NEQ,          "!=")
+    TRY_KEYWORD (NOT,          "!")
+    TRY_KEYWORD (AND,          "&&")
+    TRY_KEYWORD (OR,           "||")
 
     /*else*/ {
         return false;
@@ -352,70 +415,4 @@ static void realloc_tokens (program_t *program)
     assert (program != nullptr && "invalid pointer");
 
     program->tokens = (token_t *) realloc (program->tokens, 2 * program->capacity * sizeof (token_t));
-}
-
-
-// -------------------------------------------------------------------------------------------------
-
-#define EMIT(str, ...)                      \
-{                                           \
-    fprintf (stream, str, ##__VA_ARGS__);   \
-    return;                                 \
-}
-
-static void print_token_func (token_t *token, FILE *stream)
-{
-    assert (token  != nullptr && "invalid pointer");
-    assert (stream != nullptr && "invalid pointer");
-
-    switch (token->type)
-    {
-        case token::type_t::KEYWORD:
-            switch (token->keyword)
-            {
-                case token::keyword::LET:         EMIT ("KW: let");
-                case token::keyword::ASSIG:       EMIT ("KW: :=");
-                case token::keyword::BREAK:       EMIT ("KW: BREAK");
-                case token::keyword::PROG_END:    EMIT ("KW: ~nya~");
-                case token::keyword::PRINT:       EMIT ("KW: //print//");
-                case token::keyword::INPUT:       EMIT ("KW: //input//");
-                case token::keyword::L_BRACKET:   EMIT ("KW: (");
-                case token::keyword::R_BRACKET:   EMIT ("KW: )");
-                case token::keyword::IF:          EMIT ("KW: if");
-                case token::keyword::EQ:          EMIT ("KW: ==");
-                case token::keyword::OPEN_BLOCK:  EMIT ("KW: {");
-                case token::keyword::CLOSE_BLOCK: EMIT ("KW: }");
-                case token::keyword::SEP:         EMIT ("KW: SEP");
-                case token::keyword::ELSE:        EMIT ("KW: ELSE");
-                case token::keyword::WHILE:       EMIT ("KW: WHILE");
-                case token::keyword::FN:          EMIT ("KW: FN");
-                case token::keyword::GE:          EMIT ("KW: >=");
-                case token::keyword::LE:          EMIT ("KW: <=");
-                case token::keyword::GT:          EMIT ("KW: > ");
-                case token::keyword::LT:          EMIT ("KW: < ");
-                case token::keyword::NEQ:         EMIT ("KW: !=");
-                case token::keyword::NOT:         EMIT ("KW: NOT");
-                case token::keyword::AND:         EMIT ("KW: &&");
-                case token::keyword::OR:          EMIT ("KW: ||");
-
-                default: assert (0 && "unknown keyword");
-            }
-
-        case token::type_t::OP:
-            switch (token->op)
-            {
-                case token::op::ADD: EMIT ("OP: +");
-                case token::op::SUB: EMIT ("OP: -");
-                case token::op::MUL: EMIT ("OP: *");
-                case token::op::DIV: EMIT ("OP: /");
-                case token::op::POW: EMIT ("OP: pow");
-
-                default: assert (0 && "unknown op");
-            }
-
-        case token::type_t::VAL : EMIT ("VAL: %d",    token->val );
-        case token::type_t::NAME: EMIT ("NAME: #%d",  token->name);
-
-        default: assert (0 && "unknown token type");
-    }
 }

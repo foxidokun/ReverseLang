@@ -14,6 +14,8 @@ struct vars_t {
 struct compiler_t
 {
     vars_t vars;
+
+    int cur_label_index;
 };
 
 namespace compiler

@@ -96,6 +96,7 @@ namespace program
     void dump_tokens (program_t *program, FILE *stream);
 
     int tokenize (const char *const str_beg, size_t size, program_t *program);
+    void print_token_func (token_t *token, FILE *stream);
 }
 
 #endif

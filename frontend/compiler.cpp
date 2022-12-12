@@ -17,9 +17,13 @@ const int BUF_SIZE = 35;
 
 static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *stream);
 static void compile_op      (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void compile_if      (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void compile_while   (compiler_t *compiler, tree::node_t *node, FILE *stream);
 
-void register_var (compiler_t *compiler, int number);
-int get_offset    (compiler_t *compiler, int number);
+static void register_var (compiler_t *compiler, int number);
+static int  get_offset   (compiler_t *compiler, int number);
+
+static int  get_label_index (compiler_t *compiler);
 
 // -------------------------------------------------------------------------------------------------
 
@@ -28,8 +32,9 @@ void compiler::ctor (compiler_t *compiler)
     assert (compiler != nullptr && "invalid pointer");
 
     compiler->vars.name_indexes = (int *) calloc (DEFAULT_VARS_CAPACITY, sizeof (int));
-    compiler->vars.capacity = DEFAULT_VARS_CAPACITY;
-    compiler->vars.size     = 0;
+    compiler->vars.capacity     = DEFAULT_VARS_CAPACITY;
+    compiler->vars.size         = 0;
+    compiler->cur_label_index   = 0;
 }
 
 void compiler::dtor (compiler_t *compiler)
@@ -98,12 +103,20 @@ static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *str
             break;
 
         case tree::node_type_t::IF:
-        case tree::node_type_t::ELSE:
+            compile_if (compiler, node, stream);
+            break;
+
         case tree::node_type_t::WHILE:
+            compile_while (compiler, node, stream);
+            break;
+
         case tree::node_type_t::FUNC_DEF:
         case tree::node_type_t::FUNC_CALL:
         case tree::node_type_t::RETURN:
             assert (0 && "Not Implemented");
+        
+        case tree::node_type_t::ELSE:
+            assert (0 && "Already compiled in IF node");
 
         case tree::node_type_t::NOT_SET:
             assert (0 && "Invalid node");
@@ -118,8 +131,19 @@ static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *str
 #define EMIT_BINARY_OP(opcode)                       \
     subtree_compile (compiler, node->left,  stream); \
     subtree_compile (compiler, node->right, stream); \
-    EMIT (opcode);                                   \
-    break;
+    EMIT (opcode);
+
+#define EMIT_COMPARATOR(opcode)                      \
+    subtree_compile (compiler, node->left,  stream); \
+    subtree_compile (compiler, node->right, stream); \
+    label_index = get_label_index (compiler);        \
+    EMIT (opcode " push_one_%d", label_index);       \
+    EMIT ("    push 0");                             \
+    EMIT ("    jmp end_%d", label_index);            \
+    EMIT ("push_one_%d:", label_index);              \
+    EMIT ("    push 1");                             \
+    EMIT ("end_%d:", label_index);
+    
 
 static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
 {
@@ -130,17 +154,20 @@ static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
     assert (node->type == tree::node_type_t::OP);
 
     char buf[BUF_SIZE] = "";
+    int label_index    = -1;
+
+    EMIT ("");
 
     switch ((tree::op_t) node->data)
     {
-        case tree::op_t::ADD: EMIT_BINARY_OP ("add");
-        case tree::op_t::SUB: EMIT_BINARY_OP ("sub");
-        case tree::op_t::MUL: EMIT_BINARY_OP ("mul");
-        case tree::op_t::DIV: EMIT_BINARY_OP ("div");
+        case tree::op_t::ADD: EMIT_BINARY_OP ("add"); break;
+        case tree::op_t::SUB: EMIT_BINARY_OP ("sub"); break;
+        case tree::op_t::MUL: EMIT_BINARY_OP ("mul"); break;
+        case tree::op_t::DIV: EMIT_BINARY_OP ("div"); break;
+        case tree::op_t::POW: EMIT_BINARY_OP ("pow"); break;
 
         case tree::op_t::OUTPUT:
             subtree_compile (compiler, node->right, stream);
-            EMIT (" ");
             EMIT ("pop  rax");
             EMIT ("push rax");
             EMIT ("push rax");
@@ -149,25 +176,48 @@ static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
 
         case tree::op_t::ASSIG:
             subtree_compile (compiler, node->right, stream);
-            EMIT (" ");
             EMIT ("pop  rax");
             EMIT ("push rax");
             EMIT ("push rax");
             EMIT ("pop [rdx+%d] ; Assig", get_offset (compiler, node->left->data));
             break;
 
-        case tree::op_t::POW:
         case tree::op_t::INPUT:
-        case tree::op_t::EQ:
-        case tree::op_t::GT:
-        case tree::op_t::LT:
-        case tree::op_t::GE:
-        case tree::op_t::LE:
-        case tree::op_t::NEQ:
+            EMIT ("inp");
+            break;
+            
+        case tree::op_t::EQ:  EMIT_COMPARATOR ("je" ); break;
+        case tree::op_t::GT:  EMIT_COMPARATOR ("ja" ); break;
+        case tree::op_t::LT:  EMIT_COMPARATOR ("jb" ); break;
+        case tree::op_t::GE:  EMIT_COMPARATOR ("jae"); break;
+        case tree::op_t::LE:  EMIT_COMPARATOR ("jbe"); break;
+        case tree::op_t::NEQ: EMIT_COMPARATOR ("jne"); break;
+        
         case tree::op_t::NOT:
+            subtree_compile (compiler, node->right, stream);
+            EMIT ("push 0")
+            EMIT_COMPARATOR ("je");
+            break;
+        
         case tree::op_t::AND:
+            subtree_compile (compiler, node->left, stream);
+            EMIT ("push 0")
+            EMIT_COMPARATOR ("jne");
+            subtree_compile (compiler, node->right, stream);
+            EMIT ("push 0")
+            EMIT_COMPARATOR ("jne");
+            EMIT_COMPARATOR ("je");
+            break;
+
         case tree::op_t::OR:
-            assert (0 && "Not implemented");
+            subtree_compile (compiler, node->left, stream);
+            EMIT ("push 0")
+            EMIT_COMPARATOR ("jne");
+            subtree_compile (compiler, node->right, stream);
+            EMIT ("push 0")
+            EMIT_COMPARATOR ("jne");
+            EMIT ("add");
+            break;
 
         default:
             assert (0 && "Unexpected op type");
@@ -177,8 +227,60 @@ static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
 #undef EMIT_BINARY_OP
 
 // -------------------------------------------------------------------------------------------------
+static void compile_if (compiler_t *compiler, tree::node_t *node, FILE *stream)
+{
+    assert (compiler != nullptr && "invalid pointer");
+    assert (node     != nullptr && "invalid pointer");
+    assert (stream   != nullptr && "invalid pointer");
+    assert (node->type == tree::node_type_t::IF && "Invalid call");
 
-void register_var (compiler_t *compiler, int number)
+    char buf[BUF_SIZE] = "";
+    int label_index = get_label_index (compiler);
+
+    subtree_compile (compiler, node->left, stream);
+    EMIT ("push 0");
+
+    if (node->right->type == tree::node_type_t::ELSE)
+    {
+        EMIT ("je else_%d", label_index);
+        subtree_compile (compiler, node->right->left,  stream);
+        EMIT ("jmp if_end_%d", label_index);
+        EMIT ("else_%d:", label_index);
+        subtree_compile (compiler, node->right->right, stream);
+        EMIT ("if_end_%d:", label_index);
+    }
+    else
+    {
+        EMIT ("je if_end_%d", label_index);
+        subtree_compile (compiler, node->right, stream);
+        EMIT ("if_end_%d:",   label_index);
+    }
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static void compile_while (compiler_t *compiler, tree::node_t *node, FILE *stream)
+{
+    assert (compiler != nullptr && "invalid pointer");
+    assert (node     != nullptr && "invalid pointer");
+    assert (stream   != nullptr && "invalid pointer");
+    assert (node->type == tree::node_type_t::WHILE && "Invalid call");
+
+    char buf[BUF_SIZE] = "";
+    int label_index = get_label_index (compiler);
+
+    EMIT ("while_beg_%d:", label_index);
+    subtree_compile (compiler, node->left, stream);
+    EMIT ("push 0");
+    EMIT ("je while_end_%d",  label_index);
+    subtree_compile (compiler, node->right, stream);
+    EMIT ("jmp while_beg_%d", label_index);
+    EMIT ("while_end_%d:",    label_index);
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static void register_var (compiler_t *compiler, int number)
 {
     assert (compiler != nullptr && "invalid pointer");
 
@@ -192,7 +294,7 @@ void register_var (compiler_t *compiler, int number)
     compiler->vars.size++;
 }
 
-int get_offset (compiler_t *compiler, int number)
+static int get_offset (compiler_t *compiler, int number)
 {
     assert (compiler != nullptr && "Invalid pointer");
 
@@ -205,4 +307,13 @@ int get_offset (compiler_t *compiler, int number)
     }
 
     assert (0 && "broken tree: var not registered");
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static int get_label_index (compiler_t *compiler)
+{
+    assert (compiler != nullptr && "invalid pointer");
+
+    return compiler->cur_label_index++;
 }

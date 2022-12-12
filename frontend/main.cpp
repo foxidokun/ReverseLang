@@ -24,7 +24,7 @@ int main ()
 
     tree::graph_dump (head, "Hueta");
 
-    // compiler::compile (head, fopen ("test.asm", "w"));
+    compiler::compile (head, fopen ("test.asm", "w"));
 
     tree::del_node (head);
     program::dtor (&prog);
