@@ -118,7 +118,7 @@ tree::node_t *GetProgram (token_t *token)
 
         assert (node_next != nullptr && "Unexpected magic");
 
-        node = tree::new_node (node_type_t::FICTIOUS, 0, node_next, node);
+        node = tree::new_node (node_type_t::FICTIOUS, 0, node, node_next);
     }
 
     CHECK_KEYWORD (PROG_END);
@@ -132,10 +132,6 @@ static tree::node_t *GetFunc (token_t **input_token)
 {
     PREPARE();
     tree::node_t* arg_node = nullptr;
-
-    CHECK_KEYWORD (FUNC_OPEN_BLOCK);
-    TRY (node = GetSubProgram (&token));
-    CHECK_KEYWORD (FUNC_CLOSE_BLOCK);
 
     CHECK_KEYWORD (L_BRACKET);
     
@@ -158,10 +154,16 @@ static tree::node_t *GetFunc (token_t **input_token)
     
     CHECK_KEYWORD (R_BRACKET);
     EXPECT (isTYPE(NAME));
-    node = tree::new_node (node_type_t::FUNC_DEF, token->name, arg_node, node);
+    int func_name = token->name;
     token++;
     CHECK_KEYWORD (FN);
 
+    CHECK_KEYWORD (FUNC_OPEN_BLOCK);
+    TRY (node = GetSubProgram (&token));
+    CHECK_KEYWORD (FUNC_CLOSE_BLOCK);
+    
+    node = tree::new_node (node_type_t::FUNC_DEF, token->name, arg_node, node);
+    
     SUCCESS();
 }
 
@@ -176,7 +178,7 @@ static tree::node_t *GetSubProgram (token_t **input_token)
 
     while ((next_block = GetFlowBlock (&token)) != nullptr)
     {
-        node = tree::new_node (node_type_t::FICTIOUS, 0, next_block, node);
+        node = tree::new_node (node_type_t::FICTIOUS, 0, node, next_block);
     }
 
     SUCCESS ();
@@ -210,15 +212,15 @@ static tree::node_t *GetWhileBlock (token_t **input_token)
     PREPARE();
     tree::node_t *cond = nullptr;
 
-    CHECK_KEYWORD (OPEN_BLOCK);
-    TRY (node = GetBody (&token));
-    CHECK_KEYWORD (CLOSE_BLOCK);
-    
+    CHECK_KEYWORD (WHILE);
+
     CHECK_KEYWORD (L_BRACKET);
     TRY(cond = GetBody (&token));
     CHECK_KEYWORD (R_BRACKET);
 
-    CHECK_KEYWORD (WHILE);
+    CHECK_KEYWORD (OPEN_BLOCK);
+    TRY (node = GetBody (&token));
+    CHECK_KEYWORD (CLOSE_BLOCK);
 
     node = tree::new_node (node_type_t::WHILE, 0, cond, node);
     SUCCESS();
@@ -232,6 +234,11 @@ static tree::node_t *GetIfBlock (token_t **input_token)
     tree::node_t *cond     = nullptr;
     tree::node_t *tmp_node = nullptr;
 
+    CHECK_KEYWORD (L_BRACKET);
+    TRY (cond = GetExpression (&token));
+    CHECK_KEYWORD (R_BRACKET);
+    CHECK_KEYWORD (IF);
+
     CHECK_KEYWORD (OPEN_BLOCK);
     TRY (node = GetBody (&token));
     CHECK_KEYWORD (CLOSE_BLOCK);
@@ -244,13 +251,8 @@ static tree::node_t *GetIfBlock (token_t **input_token)
         TRY (tmp_node = GetBody (&token));
         CHECK_KEYWORD (CLOSE_BLOCK);
 
-        node = tree::new_node (node_type_t::ELSE, 0, tmp_node, node);
+        node = tree::new_node (node_type_t::ELSE, 0, node, tmp_node);
     }
-
-    CHECK_KEYWORD (L_BRACKET);
-    TRY (cond = GetExpression (&token));
-    CHECK_KEYWORD (R_BRACKET);
-    CHECK_KEYWORD (IF);
 
     node = tree::new_node (node_type_t::IF, 0, cond, node);
     SUCCESS ();
@@ -267,7 +269,7 @@ static tree::node_t *GetBody (token_t **input_token)
 
     while ((next_line = GetLine (&token)) != nullptr)
     {
-        node = tree::new_node (node_type_t::FICTIOUS, 0, next_line, node);
+        node = tree::new_node (node_type_t::FICTIOUS, 0, node, next_line);
     }
 
     SUCCESS();

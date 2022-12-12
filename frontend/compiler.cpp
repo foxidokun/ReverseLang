@@ -15,10 +15,11 @@ const int BUF_SIZE = 35;
 
 // -------------------------------------------------------------------------------------------------
 
-static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *stream);
-static void compile_op      (compiler_t *compiler, tree::node_t *node, FILE *stream);
-static void compile_if      (compiler_t *compiler, tree::node_t *node, FILE *stream);
-static void compile_while   (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void subtree_compile  (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void compile_op       (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void compile_if       (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void compile_while    (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void compile_func_def (compiler_t *compiler, tree::node_t *node, FILE *stream);
 
 static void register_var (compiler_t *compiler, int number);
 static int  get_offset   (compiler_t *compiler, int number);
@@ -111,6 +112,9 @@ static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *str
             break;
 
         case tree::node_type_t::FUNC_DEF:
+            compile_func_def (compiler, node, stream);
+            break;
+
         case tree::node_type_t::FUNC_CALL:
         case tree::node_type_t::RETURN:
             assert (0 && "Not Implemented");
@@ -276,6 +280,13 @@ static void compile_while (compiler_t *compiler, tree::node_t *node, FILE *strea
     subtree_compile (compiler, node->right, stream);
     EMIT ("jmp while_beg_%d", label_index);
     EMIT ("while_end_%d:",    label_index);
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static void compile_func_def (compiler_t *compiler, tree::node_t *node, FILE *stream)
+{
+    
 }
 
 // -------------------------------------------------------------------------------------------------
