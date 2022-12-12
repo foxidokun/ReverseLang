@@ -53,7 +53,7 @@ static void realloc_tokens (program_t *program);
         FILE *__log_stream_48de = get_log_stream();                             \
         LOG (log::ERR, "Bad token at line %d after token", program->line+1);    \
         fprintf (__log_stream_48de, "\t--> ");                                  \
-        print_token_func (&program->tokens[program->size], __log_stream_48de);  \
+        print_token_func (&program->tokens[program->size-1], __log_stream_48de);  \
         fprintf (__log_stream_48de, " <--\n");                                  \
         printf ("str: [%s]", str);                                              \
         return ERROR;                                                           \
@@ -95,15 +95,11 @@ int program::tokenize (const char *const str_beg, size_t size, program_t *progra
 
     while (str - str_beg < size)
     {
-        if (isalpha (*str) || (*str == '=' || *str == '(' || *str == ')' || *str == '{' || *str == '}' || *str == ';' || *str == ',' || *str == '_' || *str == '~' || *str == '<' || *str == '>' || *str == '!' || *str == '&' || *str == '|'))
+        if (isalpha (*str) || (*str == '=' || *str == '(' || *str == ')' || *str == '{' || *str == '}' || *str == ';' || *str == ',' || *str == '_' || *str == '~' || *str == '<' || *str == '>' || *str == '!' || *str == '&' || *str == '|' || *str == '[' || *str == ']'))
         {
             if ( !tokenize_keyword(&str, program) )
             {
                 ERR_CASE( !tokenize_name (&str, program) );
-            }
-            else 
-            {
-                ERR_CASE ( !(isspace(*str) || *str == ';'));
             }
         }
         else if (isdigit (*str))
@@ -135,6 +131,75 @@ void program::dump_tokens (program_t *program, FILE *stream)
         printf ("[%zu] \t ", i);
         print_token_func (&program->tokens[i], stream);
         putc ('\n', stream);
+    }
+}
+
+// -------------------------------------------------------------------------------------------------
+
+#define EMIT(str, ...)                      \
+{                                           \
+    fprintf (stream, str, ##__VA_ARGS__);   \
+    return;                                 \
+}
+
+void program::print_token_func (token_t *token, FILE *stream)
+{
+    assert (token  != nullptr && "invalid pointer");
+    assert (stream != nullptr && "invalid pointer");
+
+    switch (token->type)
+    {
+        case token::type_t::KEYWORD:
+            switch (token->keyword)
+            {
+                case token::keyword::LET:               EMIT ("KW: let");
+                case token::keyword::ASSIG:             EMIT ("KW: :=");
+                case token::keyword::BREAK:             EMIT ("KW: BREAK");
+                case token::keyword::PROG_BEG:          EMIT ("KW: ~sya~");
+                case token::keyword::PROG_END:          EMIT ("KW: ~nya~");
+                case token::keyword::PRINT:             EMIT ("KW: //print//");
+                case token::keyword::INPUT:             EMIT ("KW: //input//");
+                case token::keyword::L_BRACKET:         EMIT ("KW: (");
+                case token::keyword::R_BRACKET:         EMIT ("KW: )");
+                case token::keyword::IF:                EMIT ("KW: if");
+                case token::keyword::EQ:                EMIT ("KW: ==");
+                case token::keyword::OPEN_BLOCK:        EMIT ("KW: {");
+                case token::keyword::CLOSE_BLOCK:       EMIT ("KW: }");
+                case token::keyword::FUNC_OPEN_BLOCK:   EMIT ("KW: [");
+                case token::keyword::FUNC_CLOSE_BLOCK:  EMIT ("KW: ]");
+                case token::keyword::SEP:               EMIT ("KW: SEP");
+                case token::keyword::ELSE:              EMIT ("KW: ELSE");
+                case token::keyword::WHILE:             EMIT ("KW: WHILE");
+                case token::keyword::RETURN:            EMIT ("KW: RETURN");
+                case token::keyword::FN:                EMIT ("KW: FN");
+                case token::keyword::GE:                EMIT ("KW: >=");
+                case token::keyword::LE:                EMIT ("KW: <=");
+                case token::keyword::GT:                EMIT ("KW: > ");
+                case token::keyword::LT:                EMIT ("KW: < ");
+                case token::keyword::NEQ:               EMIT ("KW: !=");
+                case token::keyword::NOT:               EMIT ("KW: NOT");
+                case token::keyword::AND:               EMIT ("KW: &&");
+                case token::keyword::OR:                EMIT ("KW: ||");
+
+                default: assert (0 && "unknown keyword");
+            }
+
+        case token::type_t::OP:
+            switch (token->op)
+            {
+                case token::op::ADD: EMIT ("OP: +");
+                case token::op::SUB: EMIT ("OP: -");
+                case token::op::MUL: EMIT ("OP: *");
+                case token::op::DIV: EMIT ("OP: /");
+                case token::op::POW: EMIT ("OP: pow");
+
+                default: assert (0 && "unknown op");
+            }
+
+        case token::type_t::VAL : EMIT ("VAL: %d",    token->val );
+        case token::type_t::NAME: EMIT ("NAME: #%d",  token->name);
+
+        default: assert (0 && "unknown token type");
     }
 }
 
@@ -193,71 +258,6 @@ int nametable::insert_name (nametable_t *nametable, const char *name)
 }
 
 // -------------------------------------------------------------------------------------------------
-
-#define EMIT(str, ...)                      \
-{                                           \
-    fprintf (stream, str, ##__VA_ARGS__);   \
-    return;                                 \
-}
-
-void print_token_func (token_t *token, FILE *stream)
-{
-    assert (token  != nullptr && "invalid pointer");
-    assert (stream != nullptr && "invalid pointer");
-
-    switch (token->type)
-    {
-        case token::type_t::KEYWORD:
-            switch (token->keyword)
-            {
-                case token::keyword::LET:         EMIT ("KW: let");
-                case token::keyword::ASSIG:       EMIT ("KW: :=");
-                case token::keyword::BREAK:       EMIT ("KW: BREAK");
-                case token::keyword::PROG_END:    EMIT ("KW: ~nya~");
-                case token::keyword::PRINT:       EMIT ("KW: //print//");
-                case token::keyword::INPUT:       EMIT ("KW: //input//");
-                case token::keyword::L_BRACKET:   EMIT ("KW: (");
-                case token::keyword::R_BRACKET:   EMIT ("KW: )");
-                case token::keyword::IF:          EMIT ("KW: if");
-                case token::keyword::EQ:          EMIT ("KW: ==");
-                case token::keyword::OPEN_BLOCK:  EMIT ("KW: {");
-                case token::keyword::CLOSE_BLOCK: EMIT ("KW: }");
-                case token::keyword::SEP:         EMIT ("KW: SEP");
-                case token::keyword::ELSE:        EMIT ("KW: ELSE");
-                case token::keyword::WHILE:       EMIT ("KW: WHILE");
-                case token::keyword::FN:          EMIT ("KW: FN");
-                case token::keyword::GE:          EMIT ("KW: >=");
-                case token::keyword::LE:          EMIT ("KW: <=");
-                case token::keyword::GT:          EMIT ("KW: > ");
-                case token::keyword::LT:          EMIT ("KW: < ");
-                case token::keyword::NEQ:         EMIT ("KW: !=");
-                case token::keyword::NOT:         EMIT ("KW: NOT");
-                case token::keyword::AND:         EMIT ("KW: &&");
-                case token::keyword::OR:          EMIT ("KW: ||");
-
-                default: assert (0 && "unknown keyword");
-            }
-
-        case token::type_t::OP:
-            switch (token->op)
-            {
-                case token::op::ADD: EMIT ("OP: +");
-                case token::op::SUB: EMIT ("OP: -");
-                case token::op::MUL: EMIT ("OP: *");
-                case token::op::DIV: EMIT ("OP: /");
-                case token::op::POW: EMIT ("OP: pow");
-
-                default: assert (0 && "unknown op");
-            }
-
-        case token::type_t::VAL : EMIT ("VAL: %d",    token->val );
-        case token::type_t::NAME: EMIT ("NAME: #%d",  token->name);
-
-        default: assert (0 && "unknown token type");
-    }
-}
-
-// -------------------------------------------------------------------------------------------------
 // PRIVATE SECTION
 // -------------------------------------------------------------------------------------------------
 
@@ -300,30 +300,34 @@ static bool tokenize_keyword (const char **input_str, program_t *program)
     token->type     = token::type_t::KEYWORD;
     token->line     = program->line;
 
-    TRY_KEYWORD (LET,          "let")
-    TRY_KEYWORD (EQ,           "==")
-    TRY_KEYWORD (ASSIG,        "=")
-    TRY_KEYWORD (BREAK,        ";")
-    TRY_KEYWORD (PROG_END,     "~nya~")
-    TRY_KEYWORD (PRINT,        "__builtin_print__")
-    TRY_KEYWORD (INPUT,        "__builtin_input__")
-    TRY_KEYWORD (L_BRACKET,    "(")
-    TRY_KEYWORD (R_BRACKET,    ")")
-    TRY_KEYWORD (OPEN_BLOCK,   "{")
-    TRY_KEYWORD (CLOSE_BLOCK,  "}")
-    TRY_KEYWORD (SEP,          ",")
-    TRY_KEYWORD (IF,           "if")
-    TRY_KEYWORD (ELSE,         "else")
-    TRY_KEYWORD (WHILE,        "while")
-    TRY_KEYWORD (FN,           "fn")
-    TRY_KEYWORD (GE,           ">=")
-    TRY_KEYWORD (LE,           "<=")
-    TRY_KEYWORD (GT,           ">")
-    TRY_KEYWORD (LT,           "<")
-    TRY_KEYWORD (NEQ,          "!=")
-    TRY_KEYWORD (NOT,          "!")
-    TRY_KEYWORD (AND,          "&&")
-    TRY_KEYWORD (OR,           "||")
+    TRY_KEYWORD (LET,                   "tel")
+    TRY_KEYWORD (EQ,                    "==")
+    TRY_KEYWORD (BREAK,                 ";")
+    TRY_KEYWORD (PROG_BEG,              "~sya~")
+    TRY_KEYWORD (PROG_END,              "~nya~")
+    TRY_KEYWORD (PRINT,                 "__builtin_print__")
+    TRY_KEYWORD (INPUT,                 " __builtin_input__")
+    TRY_KEYWORD (L_BRACKET,             "(")
+    TRY_KEYWORD (R_BRACKET,             ")")
+    TRY_KEYWORD (OPEN_BLOCK,            "{")
+    TRY_KEYWORD (CLOSE_BLOCK,           "}")
+    TRY_KEYWORD (FUNC_OPEN_BLOCK,       "[")
+    TRY_KEYWORD (FUNC_CLOSE_BLOCK,      "]")
+    TRY_KEYWORD (SEP,                   ",")
+    TRY_KEYWORD (IF,                    "fi")
+    TRY_KEYWORD (ELSE,                  "esle")
+    TRY_KEYWORD (WHILE,                 "elihw")
+    TRY_KEYWORD (RETURN,                 "nruter")
+    TRY_KEYWORD (FN,                    "nf")
+    TRY_KEYWORD (GE,                    "=>")
+    TRY_KEYWORD (LE,                    "=<")
+    TRY_KEYWORD (GT,                    ">")
+    TRY_KEYWORD (LT,                    "<")
+    TRY_KEYWORD (NEQ,                   "=!")
+    TRY_KEYWORD (NOT,                   "!")
+    TRY_KEYWORD (AND,                   "&&")
+    TRY_KEYWORD (OR,                    "||")
+    TRY_KEYWORD (ASSIG,                 "=")
 
     /*else*/ {
         return false;

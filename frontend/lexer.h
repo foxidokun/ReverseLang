@@ -29,30 +29,34 @@ namespace token {
 
     enum class keyword
     {
-        LET,            //let
-        ASSIG,          // =
-        BREAK,          // ;
-        PROG_END,       // ~nya~
-        PRINT,          // __builtin_print__
-        INPUT,          // __builtin_input__
-        L_BRACKET,      // (
-        R_BRACKET,      // )
-        OPEN_BLOCK,     // {
-        CLOSE_BLOCK,    // }
-        SEP,            // ,
-        IF,             // if
-        ELSE,           // else
-        WHILE,          // while
-        FN,             // fn
-        EQ,             // ==
-        GE,             // >
-        LE,             // <
-        GT,             // >=
-        LT,             // <=
-        NEQ,            // !=
-        NOT,            // !
-        AND,            // &&
-        OR,             // ||
+        LET,              //let
+        ASSIG,            // =
+        BREAK,            // ;
+        PROG_BEG,         // ~nya~
+        PROG_END,         // ~nya~
+        PRINT,            // __builtin_print__
+        INPUT,            // __builtin_input__
+        L_BRACKET,        // (
+        R_BRACKET,        // )
+        OPEN_BLOCK,       // {
+        CLOSE_BLOCK,      // }
+        FUNC_OPEN_BLOCK,  // {
+        FUNC_CLOSE_BLOCK, // }
+        RETURN,           // return
+        SEP,              // ,
+        IF,               // if
+        ELSE,             // else
+        WHILE,            // while
+        FN,               // fn
+        EQ,               // ==
+        GE,               // >
+        LE,               // <
+        GT,               // >=
+        LT,               // <=
+        NEQ,              // !=
+        NOT,              // !
+        AND,              // &&
+        OR,               // ||
     };
 
     enum class op
