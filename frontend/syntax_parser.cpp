@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <cstdio>
 #include "../lib/log.h"
+#include "../lib/common.h"
 #include "lexer.h"
 #include "syntax_parser.h"
 
@@ -98,6 +99,7 @@ using tree::op_t;
 
 // -------------------------------------------------------------------------------------------------
 
+static tree::node_t *GetProgram        (program_t *prog);
 static tree::node_t *GetFunc           (token_t **input_token, program_t *prog);
 static tree::node_t *GetSubProgram     (token_t **input_token, program_t *prog);
 static tree::node_t *GetFlowBlock      (token_t **input_token, program_t *prog);
@@ -113,9 +115,21 @@ static tree::node_t *GetQuant          (token_t **input_token, program_t *prog);
 
 // -------------------------------------------------------------------------------------------------
 
+int program::parse_into_ast (program_t *prog)
+{
+    assert (prog != nullptr && "invalid pointer");
+
+    prog->ast = GetProgram (prog);
+
+    if (prog->ast == nullptr)   return ERROR;
+    else                        return 0;
+}
+
+// -------------------------------------------------------------------------------------------------
+
 #define EXTRA_CLEAR_ON_ERROR() {;}
 
-tree::node_t *GetProgram (program_t *prog)
+static tree::node_t *GetProgram (program_t *prog)
 {
     assert (prog != nullptr && "invalid pointer");
 

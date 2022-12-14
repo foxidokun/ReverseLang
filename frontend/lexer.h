@@ -1,9 +1,9 @@
 #ifndef LEXER_H
 #define LEXER_H
 
-#include"stdlib.h"
-#include"stdio.h"
-
+#include <stdlib.h>
+#include <stdio.h>
+#include "../lib/tree.h"
 
 struct name_entry_t
 {
@@ -98,6 +98,7 @@ struct program_t
     size_t capacity;
 
     nametable_t  names;
+    tree::node_t *ast;
 
     int line;
 };

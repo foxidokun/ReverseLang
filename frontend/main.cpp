@@ -1,5 +1,7 @@
 #include <assert.h>
 #include "../lib/file.h"
+#include "../lib/log.h"
+#include "../lib/common.h"
 #include "lexer.h"
 #include "syntax_parser.h"
 #include "compiler.h"
@@ -19,16 +21,13 @@ int main ()
 
     program::dump_tokens (&prog, stdout);
 
-    tree::node_t *head = GetProgram (&prog);
+    if (program::parse_into_ast (&prog) == ERROR) {
+        LOG (log::ERR, "Failed to parse input file");
+        return ERROR;
+    }
 
-    assert (head != nullptr && "Invalid head");
+    save_ast (&prog, prog.ast, fopen ("ast.txt", "w"));
 
-    tree::graph_dump (head, "Hueta");
-
-    save_ast (&prog, head, fopen ("ast.txt", "w"));
-
-    compiler::compile (head, fopen ("test.asm", "w"));
-
-    tree::del_node (head);
+    tree::del_node (prog.ast);
     program::dtor (&prog);
 }

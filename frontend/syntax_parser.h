@@ -4,6 +4,9 @@
 #include "../lib/tree.h"
 #include "lexer.h"
 
-tree::node_t *GetProgram (program_t *prog);
+namespace program 
+{
+    int parse_into_ast (program_t *prog);
+}
 
 #endif
