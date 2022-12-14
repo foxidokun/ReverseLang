@@ -175,7 +175,7 @@ static tree::node_t *GetFunc (token_t **input_token, program_t *prog)
     if (isTYPE (NAME))
     {
         SET_NAME_TYPE (token->name, var);
-        arg_node = tree::new_node (node_type_t::VAR_DEF, token->name);
+        arg_node = tree::new_node (node_type_t::VAR, token->name);
         token++;
 
         while (isKEYWORD (SEP))
@@ -186,7 +186,7 @@ static tree::node_t *GetFunc (token_t **input_token, program_t *prog)
             SET_NAME_TYPE (token->name, var);
 
             arg_node = tree::new_node (node_type_t::FICTIOUS, 0, 
-                                        tree::new_node (node_type_t::VAR_DEF, token->name),
+                                        tree::new_node (node_type_t::VAR, token->name),
                                         arg_node);
             token++;
         }
