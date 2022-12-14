@@ -88,13 +88,9 @@ using tree::op_t;
 #define isNEXT_KEYWORD(expected_kw) ((token+1)->type    == token::type_t::KEYWORD && \
                                      (token+1)->keyword == token::keyword::expected_kw)
 
-#define SET_NAME_TYPE(name_index, type)                     \
-{                                                           \
-    if (!prog->names.names[name_index].is_ ##type)          \
-    {                                                       \
-        prog->names.names[name_index].is_ ## type = true;   \
-        prog->names.type ## _name_cnt++;                    \
-    }                                                       \
+#define SET_NAME_TYPE(name_index, type)                                              \
+{                                                                                    \
+    nametable::insert_name (&prog->type##_names, prog->all_names.names[name_index]); \
 }
 
 // -------------------------------------------------------------------------------------------------

@@ -23,6 +23,7 @@ static void compile_op             (compiler_t *compiler, tree::node_t *node, FI
 static void compile_if             (compiler_t *compiler, tree::node_t *node, FILE *stream);
 static void compile_while          (compiler_t *compiler, tree::node_t *node, FILE *stream);
 static void compile_func_def       (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static int  compile_func_def_args  (compiler_t *compiler, tree::node_t *node, FILE *stream);
 static void compile_func_call      (compiler_t *compiler, tree::node_t *node, FILE *stream);
 static int  compile_func_call_args (compiler_t *compiler, tree::node_t *node, FILE *stream);
 
@@ -150,6 +151,7 @@ static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *str
             assert (0 && "Invalid node");
         
         default:
+            LOG (log::ERR, "Node type: %d\n", node->type);
             assert (0 && "Unexpected node");
     }
 }
@@ -192,6 +194,11 @@ static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
         case tree::op_t::SUB: EMIT_BINARY_OP ("sub"); break;
         case tree::op_t::MUL: EMIT_BINARY_OP ("mul"); break;
         case tree::op_t::DIV: EMIT_BINARY_OP ("div"); break;
+
+        case tree::op_t::SQRT:
+            subtree_compile (compiler, node->right, stream);
+            EMIT ("sqrt");
+            break;
 
         case tree::op_t::OUTPUT:
             subtree_compile (compiler, node->right, stream);
@@ -323,7 +330,7 @@ static void compile_func_def (compiler_t *compiler, tree::node_t *node, FILE *st
     EMIT ("jmp func_%d_def_end", node->data);
     EMIT ("func_%d:", node->data);
 
-    subtree_compile (compiler, node->left,  stream);
+    compile_func_def_args (compiler, node->left, stream); //TODO remember
     subtree_compile (compiler, node->right, stream);
 
     EMIT ("func_%d_def_end:", node->data);
@@ -333,6 +340,38 @@ static void compile_func_def (compiler_t *compiler, tree::node_t *node, FILE *st
     compiler->in_func = false;
     clear_local_vars (compiler);
     compiler->frame_size = compiler->global_frame_size_store;
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static int compile_func_def_args (compiler_t *compiler, tree::node_t *node, FILE *stream)
+{
+    assert (compiler != nullptr && "invalid pointer");
+    assert (node     != nullptr && "invalid pointer");
+    assert (stream   != nullptr && "invalid pointer");
+    
+    int num_of_args = 0;
+
+    if (node->type == tree::node_type_t::FICTIOUS) {
+        if (node->left != nullptr) {
+            num_of_args += compile_func_def_args (compiler, node->left, stream);
+        }
+
+        if (node->right != nullptr) {
+            num_of_args += compile_func_def_args (compiler, node->right, stream);
+        }
+    }
+    else if (node->type == tree::node_type_t::VAR)
+    {
+        register_var (compiler, node->data);
+        num_of_args = 1;
+    }
+    else 
+    {
+        assert (0 && "Broken func def params subtree");
+    }
+
+    return num_of_args;
 }
 
 // -------------------------------------------------------------------------------------------------

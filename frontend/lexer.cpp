@@ -65,7 +65,9 @@ void program::ctor (program_t *program)
     program->size     = 0;
     program->capacity = DEFAULT_TOKEN_COUNT;
  
-    nametable::ctor (&program->names);
+    nametable::ctor (&program-> all_names);
+    nametable::ctor (&program->func_names);
+    nametable::ctor (&program-> var_names);
 }
 
 void program::dtor (program_t *program)
@@ -73,7 +75,9 @@ void program::dtor (program_t *program)
     assert (program != nullptr && "invalid pointer");
     
     free (program->tokens);
-    nametable::dtor (&program->names);
+    nametable::dtor (&program-> all_names);
+    nametable::dtor (&program->func_names);
+    nametable::dtor (&program-> var_names);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -207,24 +211,16 @@ void program::save_names (program_t *program, FILE *stream)
     assert (program != nullptr && "invalid pointer");
     assert (stream  != nullptr && "invalid pointer");
 
-    fprintf (stream, "%d\n", program->names.var_name_cnt); 
+    fprintf (stream, "%d\n", program->var_names.size); 
 
-    for (size_t i = 0; i < program->names.size; ++i)
-    {
-        if (program->names.names[i].is_var)
-        {
-            fprintf (stream, "%s\n", program->names.names[i].name);
-        }
+    for (size_t i = 0; i < program->var_names.size; ++i) {
+        fprintf (stream, "%s\n", program->var_names.names[i]);
     }
 
-    fprintf (stream, "%d\n", program->names.func_name_cnt); 
+    fprintf (stream, "%d\n", program->func_names.size); 
 
-    for (size_t i = 0; i < program->names.size; ++i)
-    {
-        if (program->names.names[i].is_func)
-        {
-            fprintf (stream, "%s\n", program->names.names[i].name);
-        }
+    for (size_t i = 0; i < program->func_names.size; ++i) {
+        fprintf (stream, "%s\n", program->func_names.names[i]);
     }
 }
 
@@ -236,12 +232,10 @@ void nametable::ctor (nametable_t *nametable)
 {
     assert (nametable != nullptr && "invalid pointer");
 
-    nametable->names = (name_entry_t *) calloc (sizeof (name_entry_t), DEFAULT_NAMETABLE_SIZE);
+    nametable->names = (char **) calloc (sizeof (char *), DEFAULT_NAMETABLE_SIZE);
 
     nametable->capacity      = DEFAULT_NAMETABLE_SIZE;
     nametable->size          = 0;
-    nametable->func_name_cnt = 0;
-    nametable->var_name_cnt  = 0;
 }
 
 void nametable::dtor (nametable_t *nametable)
@@ -250,7 +244,7 @@ void nametable::dtor (nametable_t *nametable)
 
     for (size_t i = 0; i < nametable->size; ++i)
     {
-        free (nametable->names[i].name);
+        free (nametable->names[i]);
     }
 
     free (nametable->names);
@@ -267,7 +261,7 @@ int nametable::insert_name (nametable_t *nametable, const char *name)
 
     for (unsigned int i = 0; i < nametable->size; ++i)
     {
-        if (strcmp (name, nametable->names[i].name) == 0)
+        if (strcmp (name, nametable->names[i]) == 0)
         {
             return (int) i;
         }
@@ -275,19 +269,13 @@ int nametable::insert_name (nametable_t *nametable, const char *name)
 
     if (nametable->size == nametable->capacity)
     {
-        nametable->names    = (name_entry_t *) realloc (nametable->names, 2 * nametable->capacity *
-                                                                            sizeof (name_entry_t));
-
-        for (size_t i = nametable->capacity; i < 2 * nametable->capacity; ++i)
-        {
-            nametable->names->is_var  = false;
-            nametable->names->is_func = false;
-        }
+        nametable->names = (char **) realloc (nametable->names, 2 * nametable->capacity *
+                                                                            sizeof (char *));
 
         nametable->capacity = 2 * nametable->capacity;
     }
 
-    nametable->names[nametable->size].name = strdup (name);
+    nametable->names[nametable->size] = strdup (name);
 
     return (int) nametable->size++;
 }
@@ -390,7 +378,7 @@ static bool tokenize_name (const char **input_str, program_t *program)
 
     ERR_CASE (sscanf (str, "%[a-zA-Z0-9_]%n", name_buf, &len) != 1);
     str += len;
-    token->name = nametable::insert_name (&program->names, name_buf);
+    token->name = nametable::insert_name (&program->all_names, name_buf);
     
     SUCCESS ();
 }

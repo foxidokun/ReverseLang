@@ -12,7 +12,6 @@
 
 #include "tree.h"
 
-
 // -------------------------------------------------------------------------------------------------
 // CONST SECTION
 // -------------------------------------------------------------------------------------------------
@@ -31,6 +30,8 @@ static const char DUMP_FILE_PATH_FORMAT[] = "dump/%d.grv";
 static bool dfs_recursion (tree::node_t *node, tree::walk_f pre_exec,  void *pre_param,
                                                tree::walk_f in_exec,   void *in_param,
                                                tree::walk_f post_exec, void *post_param);
+
+static tree::node_t *load_subtree (const char **str);
 
 static bool node_codegen (tree::node_t *node, void *stream_void, bool cont);
 
@@ -254,6 +255,13 @@ void tree::save_tree (node_t *node, FILE *stream)
 
 // -------------------------------------------------------------------------------------------------
 
+tree::node_t *tree::load_tree (const char *str)
+{
+    return load_subtree (&str);
+}
+
+// -------------------------------------------------------------------------------------------------
+
 tree::node_t *tree::new_node ()
 {
     tree::node_t *node = (tree::node_t *) calloc (sizeof (tree::node_t), 1);
@@ -388,6 +396,55 @@ static bool dfs_recursion (tree::node_t *node, tree::walk_f pre_exec,  void *pre
     return cont;
 }
 
+// -------------------------------------------------------------------------------------------------
+
+#define SKIP_SPACES() while (isspace (**str)) { (*str)++; };
+#define CHECK(ch)     if (**str != ch) { return nullptr; } else {(*str)++;}
+#define TRY(expr)     if ((expr) == nullptr) { return nullptr; };
+
+static tree::node_t *load_subtree (const char **str)
+{
+    assert ( str != nullptr && "invalid pointer");
+    assert (*str != nullptr && "invalid pointer");
+
+    int type = -1;
+    int data = -1;
+    int nchars = 0;
+    tree::node_t *first  = nullptr;
+    tree::node_t *second = nullptr;
+
+    SKIP_SPACES ();
+    CHECK ('{');
+    sscanf (*str, "%d%d%n", &type, &data, &nchars);
+    *str += nchars;
+
+    SKIP_SPACES ();
+    if (**str == '{')
+    {
+        TRY (first = load_subtree (str));
+    }
+
+    SKIP_SPACES ();
+    if (**str == '{')
+    {
+        TRY (second = load_subtree (str));
+    }
+
+    SKIP_SPACES();
+    CHECK('}');
+
+    if (second != nullptr) {
+        return tree::new_node ((tree::node_type_t) type, data, first, second);
+    } else if (first != nullptr) {
+        return tree::new_node ((tree::node_type_t) type, data, nullptr, first);
+    } else {
+        return tree::new_node ((tree::node_type_t) type, data);
+    } 
+}
+
+#undef SKIP_SPACES
+#undef CHECK  
+#undef TRY
 // -------------------------------------------------------------------------------------------------
 
 static bool node_codegen (tree::node_t *node, void *stream_void, bool)

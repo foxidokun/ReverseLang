@@ -5,20 +5,11 @@
 #include <stdio.h>
 #include "../lib/tree.h"
 
-struct name_entry_t
-{
-    char *name;
-    bool is_var;
-    bool is_func;
-};
-
 struct nametable_t
 {
-    name_entry_t *names;
+    char **names;
     unsigned int capacity;
     unsigned int size;
-    unsigned int func_name_cnt;
-    unsigned int var_name_cnt;
 };
 
 namespace nametable {
@@ -97,7 +88,9 @@ struct program_t
     size_t size;
     size_t capacity;
 
-    nametable_t  names;
+    nametable_t  all_names;
+    nametable_t  func_names;
+    nametable_t  var_names;
     tree::node_t *ast;
 
     int line;
