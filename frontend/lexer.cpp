@@ -112,6 +112,11 @@ int program::tokenize (const char *const str_beg, size_t size, program_t *progra
         }
 
         SKIP_SPACES ();
+
+        if (program->size == program->capacity)
+        {
+            realloc_tokens (program);
+        }
     }
 
     return 0;
@@ -273,7 +278,7 @@ int nametable::insert_name (nametable_t *nametable, const char *name)
 #define SUCCESS()                                       \
 {                                                       \
     program->size++;                                    \
-    if (program->size == program->capacity) {           \
+    if (program->size >= program->capacity) {           \
         realloc_tokens(program);                        \
     }                                                   \
     *input_str = str;                                   \
@@ -356,8 +361,6 @@ static bool tokenize_name (const char **input_str, program_t *program)
     str += len;
     token->name = nametable::insert_name (&program->names, name_buf);
     
-    printf ("\nNAME #%d = <%s>\n\n", token->name, name_buf);
-
     SUCCESS ();
 }
 
@@ -420,5 +423,6 @@ static void realloc_tokens (program_t *program)
 {
     assert (program != nullptr && "invalid pointer");
 
-    program->tokens = (token_t *) realloc (program->tokens, 2 * program->capacity * sizeof (token_t));
+    program->tokens   = (token_t *) realloc (program->tokens, 2 * program->capacity * sizeof (token_t));
+    program->capacity = 2 * program->capacity;
 }

@@ -2,7 +2,6 @@
 #define COMPILER_H
 
 #include "../lib/tree.h"
-#include "../lib/stack.h"
 
 struct vars_t {
     int *name_indexes;

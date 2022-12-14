@@ -17,7 +17,7 @@ const int VAR_BUF_SIZE = 16;
 
 // -------------------------------------------------------------------------------------------------
 
-static void subtree_compile        (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void subtree_compile        (compiler_t *compiler, tree::node_t *node, FILE *stream, bool result_used = true);
 static void compile_op             (compiler_t *compiler, tree::node_t *node, FILE *stream);
 static void compile_if             (compiler_t *compiler, tree::node_t *node, FILE *stream);
 static void compile_while          (compiler_t *compiler, tree::node_t *node, FILE *stream);
@@ -70,7 +70,9 @@ void compiler::compile (tree::node_t *node, FILE *stream)
 
     EMIT ("push 0");
     EMIT ("pop rdx ; Init rdx");
-    EMIT ("\n\n; Here we go again");
+    EMIT ("  ");
+    EMIT ("  ");
+    EMIT ("; Here we go again");
 
     subtree_compile (&compiler, node, stream);
 
@@ -81,7 +83,7 @@ void compiler::compile (tree::node_t *node, FILE *stream)
 
 // -------------------------------------------------------------------------------------------------
 
-static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *stream)
+static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *stream, bool result_used)
 {
     assert (stream != nullptr && "invalid pointer");
 
@@ -95,8 +97,8 @@ static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *str
     switch (node->type)
     {
         case tree::node_type_t::FICTIOUS:
-            subtree_compile (compiler, node->left,  stream);
-            subtree_compile (compiler, node->right, stream);
+            subtree_compile (compiler, node->left,  stream, false);
+            subtree_compile (compiler, node->right, stream, false);
             break;
 
         case tree::node_type_t::VAL:
@@ -130,10 +132,13 @@ static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *str
 
         case tree::node_type_t::FUNC_CALL:
             compile_func_call (compiler, node, stream);
+            if (!result_used) {
+                EMIT ("pop rax ;Remove unused val")
+            }
             break;
         
         case tree::node_type_t::RETURN:
-            subtree_compile (compiler, node->right,  stream);
+            subtree_compile (compiler, node->right,  stream, true);
             EMIT ("ret");
             break;
 
@@ -178,8 +183,7 @@ static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
     char buf[BUF_SIZE]          = "";
     char var_code_buf[VAR_BUF_SIZE] = "";
     int label_index    = -1;
-
-    EMIT ("  ");
+    EMIT (" ");
 
     switch ((tree::op_t) node->data)
     {
@@ -314,12 +318,19 @@ static void compile_func_def (compiler_t *compiler, tree::node_t *node, FILE *st
 
     compiler->global_frame_size_store = compiler->frame_size;
     compiler->frame_size = 0;
+    compiler->in_func = true;
 
+    EMIT ("jmp func_%d_def_end", node->data);
     EMIT ("func_%d:", node->data);
 
     subtree_compile (compiler, node->left,  stream);
     subtree_compile (compiler, node->right, stream);
 
+    EMIT ("func_%d_def_end:", node->data);
+    EMIT ("; ---FUNC END---")
+    EMIT ("  ");
+
+    compiler->in_func = false;
     clear_local_vars (compiler);
     compiler->frame_size = compiler->global_frame_size_store;
 }
@@ -336,8 +347,8 @@ static void compile_func_call (compiler_t *compiler, tree::node_t *node, FILE *s
 
     int arg_counter = compile_func_call_args (compiler, node->right, stream);
 
-    EMIT ("push %d", compiler->frame_size);
     EMIT ("push rdx")
+    EMIT ("push %d", compiler->frame_size);
     EMIT ("add")
     EMIT ("pop rdx; Increment frame")
 
@@ -348,8 +359,8 @@ static void compile_func_call (compiler_t *compiler, tree::node_t *node, FILE *s
 
     EMIT ("call func_%d", node->data);
 
-    EMIT ("push %d", compiler->frame_size);
     EMIT ("push rdx")
+    EMIT ("push %d", compiler->frame_size);
     EMIT ("sub")
     EMIT ("pop rdx ;Decrement frame")
 }
@@ -359,11 +370,20 @@ static void compile_func_call (compiler_t *compiler, tree::node_t *node, FILE *s
 static int compile_func_call_args (compiler_t *compiler, tree::node_t *node, FILE *stream)
 {
     assert (compiler != nullptr && "invalid pointer");
-    assert (node     != nullptr && "invalid pointer");
     assert (stream   != nullptr && "invalid pointer");
 
     int args_counter = 0;
-    
+
+    if (node == nullptr) {
+        return args_counter;
+    }
+
+    if (node->type != tree::node_type_t::FICTIOUS) {
+        args_counter++;
+        subtree_compile (compiler, node, stream);
+        return args_counter;
+    } 
+
     if (node->left != nullptr)
     {
         if (node->left->type == tree::node_type_t::FICTIOUS) {
@@ -374,7 +394,7 @@ static int compile_func_call_args (compiler_t *compiler, tree::node_t *node, FIL
         }
     }
 
-    if (node->left != nullptr)
+    if (node->right != nullptr)
     {
         if (node->right->type == tree::node_type_t::FICTIOUS) {
             args_counter += compile_func_call_args (compiler, node->right, stream);
@@ -450,7 +470,7 @@ static bool get_var_code (compiler_t *compiler, int number, char* code)
     {
         if (compiler->local_vars.name_indexes[i] == number)
         {
-            sprintf (code, "[rdx + %u]", i);
+            sprintf (code, "[rdx+%u]", i);
             return true;
         }
     }
