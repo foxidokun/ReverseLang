@@ -355,6 +355,8 @@ static bool tokenize_name (const char **input_str, program_t *program)
     ERR_CASE (sscanf (str, "%[a-zA-Z0-9_]%n", name_buf, &len) != 1);
     str += len;
     token->name = nametable::insert_name (&program->names, name_buf);
+    
+    printf ("\nNAME #%d = <%s>\n\n", token->name, name_buf);
 
     SUCCESS ();
 }

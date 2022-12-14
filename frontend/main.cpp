@@ -26,6 +26,7 @@ int main ()
 
     compiler::compile (head, fopen ("test.asm", "w"));
 
+    tree::graph_dump (head, "After compile");
     tree::del_node (head);
     program::dtor (&prog);
 }

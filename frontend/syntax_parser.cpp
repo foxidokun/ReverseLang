@@ -47,6 +47,7 @@ using tree::op_t;
     if ((expr) == nullptr)      \
     {                           \
         del_node (node);        \
+        EXTRA_CLEAR_ON_ERROR(); \
         return nullptr;         \
     }                           \
 }
@@ -60,6 +61,7 @@ using tree::op_t;
         program::print_token_func (token, stdout);                              \
         printf ("\n");          \
         del_node (node);        \
+        EXTRA_CLEAR_ON_ERROR(); \
         return nullptr;         \
     }                           \
 }
@@ -97,6 +99,8 @@ static tree::node_t *GetQuant          (token_t **input_token);
 
 // -------------------------------------------------------------------------------------------------
 
+#define EXTRA_CLEAR_ON_ERROR() {;}
+
 tree::node_t *GetProgram (token_t *token)
 {
     assert (token != nullptr && "invalid pointer");
@@ -126,7 +130,11 @@ tree::node_t *GetProgram (token_t *token)
     return node;
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() tree::del_node (arg_node);
 
 static tree::node_t *GetFunc (token_t **input_token)
 {
@@ -162,12 +170,16 @@ static tree::node_t *GetFunc (token_t **input_token)
     TRY (node = GetSubProgram (&token));
     CHECK_KEYWORD (FUNC_CLOSE_BLOCK);
     
-    node = tree::new_node (node_type_t::FUNC_DEF, token->name, arg_node, node);
+    node = tree::new_node (node_type_t::FUNC_DEF, func_name, arg_node, node);
     
     SUCCESS();
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
 
 static tree::node_t *GetSubProgram (token_t **input_token)
 {
@@ -184,7 +196,11 @@ static tree::node_t *GetSubProgram (token_t **input_token)
     SUCCESS ();
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
 
 static tree::node_t *GetFlowBlock (token_t **input_token)
 {
@@ -205,7 +221,11 @@ static tree::node_t *GetFlowBlock (token_t **input_token)
     SUCCESS ();
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() tree::del_node (cond);
 
 static tree::node_t *GetWhileBlock (token_t **input_token)
 {
@@ -226,7 +246,11 @@ static tree::node_t *GetWhileBlock (token_t **input_token)
     SUCCESS();
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() tree::del_node (cond);
 
 static tree::node_t *GetIfBlock (token_t **input_token)
 {
@@ -258,7 +282,11 @@ static tree::node_t *GetIfBlock (token_t **input_token)
     SUCCESS ();
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
 
 static tree::node_t *GetBody (token_t **input_token)
 {
@@ -275,7 +303,11 @@ static tree::node_t *GetBody (token_t **input_token)
     SUCCESS();
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() tree::del_node (var_def);
 
 static tree::node_t *GetLine (token_t **input_token)
 {
@@ -313,8 +345,11 @@ static tree::node_t *GetLine (token_t **input_token)
     SUCCESS ();
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
 
+#define EXTRA_CLEAR_ON_ERROR() {;}
 #define TRANSLATE_KEYWORD(op_in)  \
     case token::keyword::op_in:   \
         node = tree::new_node (tree::node_type_t::OP, tree::op_t::op_in, node_rhs, node); \
@@ -344,6 +379,8 @@ static tree::node_t *GetExpression (token_t **input_token)
 
             TRY (node_rhs = GetCompOperand (&token));
 
+            #pragma GCC diagnostic push
+            #pragma GCC diagnostic ignored "-Wswitch-enum"
             switch (comp_op) {
                 TRANSLATE_KEYWORD (GE);
                 TRANSLATE_KEYWORD (LE);
@@ -352,6 +389,7 @@ static tree::node_t *GetExpression (token_t **input_token)
                 
                 default: assert (0 && "Logic error: incorrect if condition");
             }
+            #pragma GCC diagnostic pop
         }
     }
 
@@ -359,7 +397,11 @@ static tree::node_t *GetExpression (token_t **input_token)
 }
 
 #undef TRANSLATE_KEYWORD
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
 
 static tree::node_t *GetCompOperand (token_t **input_token)
 {
@@ -382,7 +424,11 @@ static tree::node_t *GetCompOperand (token_t **input_token)
     SUCCESS();
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
 
 static tree::node_t *GetAddOperand (token_t **input_token)
 {
@@ -406,7 +452,11 @@ static tree::node_t *GetAddOperand (token_t **input_token)
     SUCCESS();
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
 
 static tree::node_t *GetMulOperand (token_t **input_token)
 {
@@ -427,7 +477,11 @@ static tree::node_t *GetMulOperand (token_t **input_token)
     SUCCESS();
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
 
 static tree::node_t *GetGeneralOperand (token_t **input_token)
 {
@@ -445,7 +499,11 @@ static tree::node_t *GetGeneralOperand (token_t **input_token)
     SUCCESS ();
 }
 
+#undef EXTRA_CLEAR_ON_ERROR
+
 // -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
 
 static tree::node_t *GetQuant (token_t **input_token)
 {
@@ -495,3 +553,5 @@ static tree::node_t *GetQuant (token_t **input_token)
 
     SUCCESS ();    
 }
+
+#undef EXTRA_CLEAR_ON_ERROR

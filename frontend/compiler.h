@@ -2,6 +2,7 @@
 #define COMPILER_H
 
 #include "../lib/tree.h"
+#include "../lib/stack.h"
 
 struct vars_t {
     int *name_indexes;
@@ -13,7 +14,12 @@ struct vars_t {
 //TODO понадобится стек размеров фрейма
 struct compiler_t
 {
-    vars_t vars;
+    vars_t global_vars;
+    vars_t local_vars;
+
+    bool in_func;
+    int global_frame_size_store;
+    int frame_size;
 
     int cur_label_index;
 };

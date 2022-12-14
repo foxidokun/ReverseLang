@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <cstdlib>
+#include "../lib/common.h"
 #include "compiler.h"
 
 #define EMIT(fmt, ...)                                                              \
@@ -11,20 +12,27 @@
 // -------------------------------------------------------------------------------------------------
 
 const int DEFAULT_VARS_CAPACITY = 16;
-const int BUF_SIZE = 35;
+const int BUF_SIZE     = 64;
+const int VAR_BUF_SIZE = 16;
 
 // -------------------------------------------------------------------------------------------------
 
-static void subtree_compile  (compiler_t *compiler, tree::node_t *node, FILE *stream);
-static void compile_op       (compiler_t *compiler, tree::node_t *node, FILE *stream);
-static void compile_if       (compiler_t *compiler, tree::node_t *node, FILE *stream);
-static void compile_while    (compiler_t *compiler, tree::node_t *node, FILE *stream);
-static void compile_func_def (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void subtree_compile        (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void compile_op             (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void compile_if             (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void compile_while          (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void compile_func_def       (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static void compile_func_call      (compiler_t *compiler, tree::node_t *node, FILE *stream);
+static int  compile_func_call_args (compiler_t *compiler, tree::node_t *node, FILE *stream);
 
-static void register_var (compiler_t *compiler, int number);
-static int  get_offset   (compiler_t *compiler, int number);
+static int  ctor_vars (vars_t *vars);
+static void dtor_vars (vars_t *vars);
 
-static int  get_label_index (compiler_t *compiler);
+static void register_var     (compiler_t *compiler, int number);
+static bool get_var_code     (compiler_t *compiler, int number, char *code);
+static void clear_local_vars (compiler_t *compiler);
+
+static int  get_label_index  (compiler_t *compiler);
 
 // -------------------------------------------------------------------------------------------------
 
@@ -32,17 +40,20 @@ void compiler::ctor (compiler_t *compiler)
 {
     assert (compiler != nullptr && "invalid pointer");
 
-    compiler->vars.name_indexes = (int *) calloc (DEFAULT_VARS_CAPACITY, sizeof (int));
-    compiler->vars.capacity     = DEFAULT_VARS_CAPACITY;
-    compiler->vars.size         = 0;
-    compiler->cur_label_index   = 0;
+    ctor_vars (&compiler->global_vars);
+    ctor_vars (&compiler->local_vars);
+
+    compiler->cur_label_index         = 0;
+    compiler->frame_size              = 0;
+    compiler->global_frame_size_store = 0;
 }
 
 void compiler::dtor (compiler_t *compiler)
 {
     assert (compiler != nullptr && "invalid pointer");
 
-    free (compiler->vars.name_indexes);
+    dtor_vars (&compiler->global_vars);
+    dtor_vars (&compiler->local_vars);
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -79,6 +90,7 @@ static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *str
     }
 
     char buf[BUF_SIZE] = "";
+    char var_code_buf[VAR_BUF_SIZE] = "";
 
     switch (node->type)
     {
@@ -92,7 +104,8 @@ static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *str
             break;
 
         case tree::node_type_t::VAR:
-            EMIT ("push [rdx+%d]", get_offset (compiler, node->data));
+            get_var_code (compiler, node->data, var_code_buf);
+            EMIT ("push %s", var_code_buf);
             break;
 
         case tree::node_type_t::VAR_DEF:
@@ -116,9 +129,14 @@ static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *str
             break;
 
         case tree::node_type_t::FUNC_CALL:
-        case tree::node_type_t::RETURN:
-            assert (0 && "Not Implemented");
+            compile_func_call (compiler, node, stream);
+            break;
         
+        case tree::node_type_t::RETURN:
+            subtree_compile (compiler, node->right,  stream);
+            EMIT ("ret");
+            break;
+
         case tree::node_type_t::ELSE:
             assert (0 && "Already compiled in IF node");
 
@@ -157,10 +175,11 @@ static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
 
     assert (node->type == tree::node_type_t::OP);
 
-    char buf[BUF_SIZE] = "";
+    char buf[BUF_SIZE]          = "";
+    char var_code_buf[VAR_BUF_SIZE] = "";
     int label_index    = -1;
 
-    EMIT ("");
+    EMIT ("  ");
 
     switch ((tree::op_t) node->data)
     {
@@ -183,7 +202,8 @@ static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
             EMIT ("pop  rax");
             EMIT ("push rax");
             EMIT ("push rax");
-            EMIT ("pop [rdx+%d] ; Assig", get_offset (compiler, node->left->data));
+            get_var_code (compiler, node->left->data, var_code_buf);
+            EMIT ("pop %s ; Assig", var_code_buf);
             break;
 
         case tree::op_t::INPUT:
@@ -286,7 +306,111 @@ static void compile_while (compiler_t *compiler, tree::node_t *node, FILE *strea
 
 static void compile_func_def (compiler_t *compiler, tree::node_t *node, FILE *stream)
 {
+    assert (compiler != nullptr && "invalid pointer");
+    assert (node     != nullptr && "invalid pointer");
+    assert (stream   != nullptr && "invalid pointer");
+    assert (node->type == tree::node_type_t::FUNC_DEF && "Invalid call");
+    char buf[BUF_SIZE] = "";
+
+    compiler->global_frame_size_store = compiler->frame_size;
+    compiler->frame_size = 0;
+
+    EMIT ("func_%d:", node->data);
+
+    subtree_compile (compiler, node->left,  stream);
+    subtree_compile (compiler, node->right, stream);
+
+    clear_local_vars (compiler);
+    compiler->frame_size = compiler->global_frame_size_store;
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static void compile_func_call (compiler_t *compiler, tree::node_t *node, FILE *stream)
+{
+    assert (compiler != nullptr && "invalid pointer");
+    assert (node     != nullptr && "invalid pointer");
+    assert (stream   != nullptr && "invalid pointer");
+    assert (node->type == tree::node_type_t::FUNC_CALL && "Invalid call");
+    char buf[BUF_SIZE] = "";
+
+    int arg_counter = compile_func_call_args (compiler, node->right, stream);
+
+    EMIT ("push %d", compiler->frame_size);
+    EMIT ("push rdx")
+    EMIT ("add")
+    EMIT ("pop rdx; Increment frame")
+
+    for (int i = arg_counter - 1; i >= 0; --i)
+    {
+        EMIT ("pop [rdx+%d] ; Fill args", i);
+    }
+
+    EMIT ("call func_%d", node->data);
+
+    EMIT ("push %d", compiler->frame_size);
+    EMIT ("push rdx")
+    EMIT ("sub")
+    EMIT ("pop rdx ;Decrement frame")
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static int compile_func_call_args (compiler_t *compiler, tree::node_t *node, FILE *stream)
+{
+    assert (compiler != nullptr && "invalid pointer");
+    assert (node     != nullptr && "invalid pointer");
+    assert (stream   != nullptr && "invalid pointer");
+
+    int args_counter = 0;
     
+    if (node->left != nullptr)
+    {
+        if (node->left->type == tree::node_type_t::FICTIOUS) {
+            args_counter += compile_func_call_args (compiler, node->left, stream);
+        } else {
+            args_counter++;
+            subtree_compile (compiler, node->left, stream);
+        }
+    }
+
+    if (node->left != nullptr)
+    {
+        if (node->right->type == tree::node_type_t::FICTIOUS) {
+            args_counter += compile_func_call_args (compiler, node->right, stream);
+        } else {
+            args_counter++;
+            subtree_compile (compiler, node->right, stream);
+        }
+    }
+
+    return args_counter;
+}
+// -------------------------------------------------------------------------------------------------
+
+static int ctor_vars (vars_t *vars)
+{
+    assert (vars != nullptr && "invalid pointer");
+
+    vars->name_indexes = (int *) calloc (DEFAULT_VARS_CAPACITY, sizeof (int));
+    if (vars->name_indexes == nullptr) { return ERROR; }
+
+    vars->size     = 0;
+    vars->capacity = DEFAULT_VARS_CAPACITY;
+
+    return 0;
+}
+
+static void dtor_vars (vars_t *vars)
+{
+    assert (vars != nullptr && "invalis pointer");
+
+    free (vars->name_indexes);
+
+    #ifndef NDEBUG
+        vars->size     = 0;
+        vars->capacity = 0;
+    #endif
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -295,29 +419,61 @@ static void register_var (compiler_t *compiler, int number)
 {
     assert (compiler != nullptr && "invalid pointer");
 
-    if (compiler->vars.size == compiler->vars.capacity)
-    {
-        compiler->vars.name_indexes = (int *) realloc (compiler->vars.name_indexes, 2 * compiler->vars.capacity * sizeof (int));
-        compiler->vars.capacity    *= 2;
+    vars_t *vars = nullptr;
+
+    if (compiler->in_func) {
+        vars = &compiler->local_vars;
+    } else {
+        vars = &compiler->global_vars;
     }
 
-    compiler->vars.name_indexes[compiler->vars.size] = number;
-    compiler->vars.size++;
+    if (vars->size == vars->capacity)
+    {
+        vars->name_indexes = (int *) realloc (vars->name_indexes, 2 * vars->capacity * sizeof (int));
+        vars->capacity    *= 2;
+    }
+
+    vars->name_indexes[vars->size] = number;
+    vars->size++;
+
+    compiler->frame_size++;
 }
 
-static int get_offset (compiler_t *compiler, int number)
+// -------------------------------------------------------------------------------------------------
+
+static bool get_var_code (compiler_t *compiler, int number, char* code)
 {
     assert (compiler != nullptr && "Invalid pointer");
+    assert (code     != nullptr && "Invalid pointer");
 
-    for (unsigned int i = 0; i < compiler->vars.size; ++i)
+    for (unsigned int i = 0; i < compiler->local_vars.size; ++i)
     {
-        if (compiler->vars.name_indexes[i] == number)
+        if (compiler->local_vars.name_indexes[i] == number)
         {
-            return (int) i;
+            sprintf (code, "[rdx + %u]", i);
+            return true;
         }
     }
 
-    assert (0 && "broken tree: var not registered");
+    for (unsigned int i = 0; i < compiler->global_vars.size; ++i)
+    {
+        if (compiler->global_vars.name_indexes[i] == number)
+        {
+            sprintf (code, "[%u]", i);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static void clear_local_vars (compiler_t *compiler)
+{
+    assert (compiler != nullptr && "invalid pointer");
+
+    compiler->local_vars.size = 0;
 }
 
 // -------------------------------------------------------------------------------------------------
