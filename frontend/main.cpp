@@ -4,7 +4,6 @@
 #include "../lib/common.h"
 #include "lexer.h"
 #include "syntax_parser.h"
-#include "compiler.h"
 #include "frontend.h"
 
 int main ()
