@@ -4,6 +4,6 @@
 #include "../lib/tree.h"
 #include "lexer.h"
 
-tree::node_t *GetProgram (token_t *token);
+tree::node_t *GetProgram (program_t *prog);
 
 #endif

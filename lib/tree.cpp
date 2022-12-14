@@ -220,6 +220,40 @@ int tree::graph_dump (node_t *node, const char *reason_fmt, va_list args)
 
 // -------------------------------------------------------------------------------------------------
 
+void tree::save_tree (tree_t *tree, FILE *stream)
+{
+    assert (tree   != nullptr && "invalid pointer");
+    assert (stream != nullptr && "invalid pointer");
+
+    save_tree (tree->head_node, stream);
+}
+
+void tree::save_tree (node_t *node, FILE *stream)
+{
+    assert (node   != nullptr && "invalid pointer");
+    assert (stream != nullptr && "invalid pointer");
+
+    walk_f dump_pre = [](node_t *node, void *param, bool)
+    {
+        FILE *output = (FILE *) param;
+        fprintf (output, "{ %d %d\n", node->type, node->data);
+        return true;
+    };
+
+    walk_f dump_post = [](node_t*, void *param, bool)
+    {
+        FILE *output = (FILE *) param;
+        fprintf (output, "}\n");
+        return true;
+    };
+
+    dfs_exec (node, dump_pre,  stream,
+                    nullptr,   nullptr,
+                    dump_post, stream);
+}
+
+// -------------------------------------------------------------------------------------------------
+
 tree::node_t *tree::new_node ()
 {
     tree::node_t *node = (tree::node_t *) calloc (sizeof (tree::node_t), 1);

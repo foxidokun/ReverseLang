@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <cstdlib>
 #include "../lib/common.h"
+#include "../lib/log.h"
 #include "compiler.h"
 
 #define EMIT(fmt, ...)                                                              \
@@ -482,6 +483,8 @@ static bool get_var_code (compiler_t *compiler, int number, char* code)
             return true;
         }
     }
+
+    LOG (log::ERR, "FAILED to get var code %d", number);
 
     return false;
 }

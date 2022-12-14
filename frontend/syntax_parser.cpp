@@ -21,6 +21,12 @@
 using tree::node_type_t;
 using tree::op_t;
 
+//TODO
+// Добавить в токены строку на которой был получен, чтобы адекватные сообщения об ошибкахa
+// Проверки на существование имен переменных и функций перед их использованием через структуры в prog
+// Как-то избавиться от лишних "ошибок" в консоли через какой-нибудь флаг через все функции
+// Валидация кол-ва аргументов
+
 // -------------------------------------------------------------------------------------------------
 
 #define PREPARE()                       \
@@ -80,39 +86,50 @@ using tree::op_t;
 
 #define isNEXT_KEYWORD(expected_kw) ((token+1)->type    == token::type_t::KEYWORD && \
                                      (token+1)->keyword == token::keyword::expected_kw)
+
+#define SET_NAME_TYPE(name_index, type)                     \
+{                                                           \
+    if (!prog->names.names[name_index].is_ ##type)          \
+    {                                                       \
+        prog->names.names[name_index].is_ ## type = true;   \
+        prog->names.type ## _name_cnt++;                    \
+    }                                                       \
+}
+
 // -------------------------------------------------------------------------------------------------
 
-static tree::node_t *GetFunc           (token_t **input_token);
-static tree::node_t *GetSubProgram     (token_t **input_token);
-static tree::node_t *GetFlowBlock      (token_t **input_token);
-static tree::node_t *GetWhileBlock     (token_t **input_token);
-static tree::node_t *GetIfBlock        (token_t **input_token);
-static tree::node_t *GetBody           (token_t **input_token);
-static tree::node_t *GetLine           (token_t **input_token);
-static tree::node_t *GetExpression     (token_t **input_token);
-static tree::node_t *GetCompOperand    (token_t **input_token);
-static tree::node_t *GetAddOperand     (token_t **input_token);
-static tree::node_t *GetGeneralOperand (token_t **input_token);
-static tree::node_t *GetQuant          (token_t **input_token);
+static tree::node_t *GetFunc           (token_t **input_token, program_t *prog);
+static tree::node_t *GetSubProgram     (token_t **input_token, program_t *prog);
+static tree::node_t *GetFlowBlock      (token_t **input_token, program_t *prog);
+static tree::node_t *GetWhileBlock     (token_t **input_token, program_t *prog);
+static tree::node_t *GetIfBlock        (token_t **input_token, program_t *prog);
+static tree::node_t *GetBody           (token_t **input_token, program_t *prog);
+static tree::node_t *GetLine           (token_t **input_token, program_t *prog);
+static tree::node_t *GetExpression     (token_t **input_token, program_t *prog);
+static tree::node_t *GetCompOperand    (token_t **input_token, program_t *prog);
+static tree::node_t *GetAddOperand     (token_t **input_token, program_t *prog);
+static tree::node_t *GetGeneralOperand (token_t **input_token, program_t *prog);
+static tree::node_t *GetQuant          (token_t **input_token, program_t *prog);
 
 // -------------------------------------------------------------------------------------------------
 
 #define EXTRA_CLEAR_ON_ERROR() {;}
 
-tree::node_t *GetProgram (token_t *token)
+tree::node_t *GetProgram (program_t *prog)
 {
-    assert (token != nullptr && "invalid pointer");
+    assert (prog != nullptr && "invalid pointer");
 
-    tree::node_t *node     = nullptr;
+    token_t *token          = prog->tokens; 
+    tree::node_t *node      = nullptr;
     tree::node_t *node_next = nullptr;
 
     CHECK_KEYWORD (PROG_BEG);
 
     while (true)
     {
-        if ((node_next = GetSubProgram (&token)) == nullptr)
+        if ((node_next = GetSubProgram (&token, prog)) == nullptr)
         {
-            if ((node_next = GetFunc (&token)) == nullptr)
+            if ((node_next = GetFunc (&token, prog)) == nullptr)
             {
                 break;
             }
@@ -134,7 +151,7 @@ tree::node_t *GetProgram (token_t *token)
 
 #define EXTRA_CLEAR_ON_ERROR() tree::del_node (arg_node);
 
-static tree::node_t *GetFunc (token_t **input_token)
+static tree::node_t *GetFunc (token_t **input_token, program_t *prog)
 {
     PREPARE();
     tree::node_t* arg_node = nullptr;
@@ -143,6 +160,7 @@ static tree::node_t *GetFunc (token_t **input_token)
     
     if (isTYPE (NAME))
     {
+        SET_NAME_TYPE (token->name, var);
         arg_node = tree::new_node (node_type_t::VAR_DEF, token->name);
         token++;
 
@@ -151,6 +169,8 @@ static tree::node_t *GetFunc (token_t **input_token)
             token++;
 
             EXPECT (isTYPE (NAME));
+            SET_NAME_TYPE (token->name, var);
+
             arg_node = tree::new_node (node_type_t::FICTIOUS, 0, 
                                         tree::new_node (node_type_t::VAR_DEF, token->name),
                                         arg_node);
@@ -162,10 +182,12 @@ static tree::node_t *GetFunc (token_t **input_token)
     EXPECT (isTYPE(NAME));
     int func_name = token->name;
     token++;
+    SET_NAME_TYPE (func_name, func);
+    
     CHECK_KEYWORD (FN);
 
     CHECK_KEYWORD (FUNC_OPEN_BLOCK);
-    TRY (node = GetSubProgram (&token));
+    TRY (node = GetSubProgram (&token, prog));
     CHECK_KEYWORD (FUNC_CLOSE_BLOCK);
     
     node = tree::new_node (node_type_t::FUNC_DEF, func_name, arg_node, node);
@@ -179,14 +201,14 @@ static tree::node_t *GetFunc (token_t **input_token)
 
 #define EXTRA_CLEAR_ON_ERROR() {;}
 
-static tree::node_t *GetSubProgram (token_t **input_token)
+static tree::node_t *GetSubProgram (token_t **input_token, program_t *prog)
 {
     PREPARE();
     tree::node_t *next_block = nullptr;
 
-    TRY (node = GetFlowBlock (&token));
+    TRY (node = GetFlowBlock (&token, prog));
 
-    while ((next_block = GetFlowBlock (&token)) != nullptr)
+    while ((next_block = GetFlowBlock (&token, prog)) != nullptr)
     {
         node = tree::new_node (node_type_t::FICTIOUS, 0, node, next_block);
     }
@@ -200,18 +222,18 @@ static tree::node_t *GetSubProgram (token_t **input_token)
 
 #define EXTRA_CLEAR_ON_ERROR() {;}
 
-static tree::node_t *GetFlowBlock (token_t **input_token)
+static tree::node_t *GetFlowBlock (token_t **input_token, program_t *prog)
 {
     PREPARE();
 
-    if ((node = GetIfBlock (&token)) == nullptr) {
-        if ((node = GetWhileBlock (&token)) == nullptr) {
+    if ((node = GetIfBlock (&token, prog)) == nullptr) {
+        if ((node = GetWhileBlock (&token, prog)) == nullptr) {
             if (isKEYWORD (OPEN_BLOCK)) {
                 token++;
-                TRY (node = GetBody (&token));
+                TRY (node = GetBody (&token, prog));
                 CHECK_KEYWORD(CLOSE_BLOCK);
             } else {
-                TRY (node = GetBody (&token));
+                TRY (node = GetBody (&token, prog));
             }
         }
     }
@@ -225,7 +247,7 @@ static tree::node_t *GetFlowBlock (token_t **input_token)
 
 #define EXTRA_CLEAR_ON_ERROR() tree::del_node (cond);
 
-static tree::node_t *GetWhileBlock (token_t **input_token)
+static tree::node_t *GetWhileBlock (token_t **input_token, program_t *prog)
 {
     PREPARE();
     tree::node_t *cond = nullptr;
@@ -233,11 +255,11 @@ static tree::node_t *GetWhileBlock (token_t **input_token)
     CHECK_KEYWORD (WHILE);
 
     CHECK_KEYWORD (L_BRACKET);
-    TRY(cond = GetBody (&token));
+    TRY(cond = GetBody (&token, prog));
     CHECK_KEYWORD (R_BRACKET);
 
     CHECK_KEYWORD (OPEN_BLOCK);
-    TRY (node = GetBody (&token));
+    TRY (node = GetBody (&token, prog));
     CHECK_KEYWORD (CLOSE_BLOCK);
 
     node = tree::new_node (node_type_t::WHILE, 0, cond, node);
@@ -250,19 +272,19 @@ static tree::node_t *GetWhileBlock (token_t **input_token)
 
 #define EXTRA_CLEAR_ON_ERROR() tree::del_node (cond);
 
-static tree::node_t *GetIfBlock (token_t **input_token)
+static tree::node_t *GetIfBlock (token_t **input_token, program_t *prog)
 {
     PREPARE ();
     tree::node_t *cond     = nullptr;
     tree::node_t *tmp_node = nullptr;
 
     CHECK_KEYWORD (L_BRACKET);
-    TRY (cond = GetExpression (&token));
+    TRY (cond = GetExpression (&token, prog));
     CHECK_KEYWORD (R_BRACKET);
     CHECK_KEYWORD (IF);
 
     CHECK_KEYWORD (OPEN_BLOCK);
-    TRY (node = GetBody (&token));
+    TRY (node = GetBody (&token, prog));
     CHECK_KEYWORD (CLOSE_BLOCK);
 
     if (isKEYWORD (ELSE))
@@ -270,7 +292,7 @@ static tree::node_t *GetIfBlock (token_t **input_token)
         token++;
 
         CHECK_KEYWORD (OPEN_BLOCK);
-        TRY (tmp_node = GetBody (&token));
+        TRY (tmp_node = GetBody (&token, prog));
         CHECK_KEYWORD (CLOSE_BLOCK);
 
         node = tree::new_node (node_type_t::ELSE, 0, node, tmp_node);
@@ -286,14 +308,14 @@ static tree::node_t *GetIfBlock (token_t **input_token)
 
 #define EXTRA_CLEAR_ON_ERROR() {;}
 
-static tree::node_t *GetBody (token_t **input_token)
+static tree::node_t *GetBody (token_t **input_token, program_t *prog)
 {
     PREPARE ();
     tree::node_t *next_line = nullptr;
 
-    TRY (node = GetLine (&token));
+    TRY (node = GetLine (&token, prog));
 
-    while ((next_line = GetLine (&token)) != nullptr)
+    while ((next_line = GetLine (&token, prog)) != nullptr)
     {
         node = tree::new_node (node_type_t::FICTIOUS, 0, node, next_line);
     }
@@ -307,14 +329,14 @@ static tree::node_t *GetBody (token_t **input_token)
 
 #define EXTRA_CLEAR_ON_ERROR() tree::del_node (var_def);
 
-static tree::node_t *GetLine (token_t **input_token)
+static tree::node_t *GetLine (token_t **input_token, program_t *prog)
 {
     PREPARE ();
 
     tree::node_t *var_def = nullptr;
 
     CHECK_KEYWORD (BREAK);
-    TRY (node = GetExpression (&token));
+    TRY (node = GetExpression (&token, prog));
 
     if (isKEYWORD (ASSIG))
     {
@@ -329,6 +351,7 @@ static tree::node_t *GetLine (token_t **input_token)
         {
             token++;
             var_def = tree::new_node (node_type_t::VAR_DEF, var_name);
+            SET_NAME_TYPE (var_name, var);
         }
     }
     else if (isKEYWORD (RETURN))
@@ -353,7 +376,7 @@ static tree::node_t *GetLine (token_t **input_token)
         node = tree::new_node (tree::node_type_t::OP, tree::op_t::op_in, node_rhs, node); \
         break;                    \
 
-static tree::node_t *GetExpression (token_t **input_token)
+static tree::node_t *GetExpression (token_t **input_token, program_t *prog)
 {
     PREPARE ();
 
@@ -361,7 +384,7 @@ static tree::node_t *GetExpression (token_t **input_token)
     {
         token++;
 
-        TRY (node = GetExpression (&token));
+        TRY (node = GetExpression (&token, prog));
 
         node = tree::new_node (node_type_t::OP, op_t::OUTPUT, nullptr, node);
     }
@@ -369,13 +392,13 @@ static tree::node_t *GetExpression (token_t **input_token)
     {
         token++;
 
-        TRY (node = GetExpression (&token));
+        TRY (node = GetExpression (&token, prog));
 
         node = tree::new_node (node_type_t::OP, op_t::SQRT, nullptr, node);
     }
     else
     {
-        TRY (node = GetCompOperand (&token));
+        TRY (node = GetCompOperand (&token, prog));
 
         if (isKEYWORD (GE) || isKEYWORD (LE) || isKEYWORD (GT) || isKEYWORD (LT))
         {
@@ -383,7 +406,7 @@ static tree::node_t *GetExpression (token_t **input_token)
             token::keyword comp_op = token->keyword;
             token++;
 
-            TRY (node_rhs = GetCompOperand (&token));
+            TRY (node_rhs = GetCompOperand (&token, prog));
 
             #pragma GCC diagnostic push
             #pragma GCC diagnostic ignored "-Wswitch-enum"
@@ -409,20 +432,20 @@ static tree::node_t *GetExpression (token_t **input_token)
 
 #define EXTRA_CLEAR_ON_ERROR() {;}
 
-static tree::node_t *GetCompOperand (token_t **input_token)
+static tree::node_t *GetCompOperand (token_t **input_token, program_t *prog)
 {
     PREPARE();
     op_t op = tree::op_t::INPUT; // Poison value
     tree::node_t *node_rhs = nullptr;
 
-    TRY (node = GetAddOperand (&token));
+    TRY (node = GetAddOperand (&token, prog));
 
     while (isOP(ADD) || isOP(SUB))
     {
         op = isOP (ADD) ? op_t::ADD : op_t::SUB;
         token++;
 
-        TRY (node_rhs = GetAddOperand (&token));
+        TRY (node_rhs = GetAddOperand (&token, prog));
 
         node = tree::new_node (node_type_t::OP, op, node_rhs, node);
     }
@@ -436,21 +459,21 @@ static tree::node_t *GetCompOperand (token_t **input_token)
 
 #define EXTRA_CLEAR_ON_ERROR() {;}
 
-static tree::node_t *GetAddOperand (token_t **input_token)
+static tree::node_t *GetAddOperand (token_t **input_token, program_t *prog)
 {
     PREPARE ();
 
     tree::node_t *node_rhs = nullptr;
     op_t op = tree::op_t::INPUT; // Poison value
 
-    TRY (node = GetGeneralOperand (&token));
+    TRY (node = GetGeneralOperand (&token, prog));
 
     while (isOP(MUL) || isOP(DIV))
     {
         op = isOP (MUL) ? op_t::MUL : op_t::DIV;
         token++;
 
-        TRY (node_rhs = GetGeneralOperand (&token));
+        TRY (node_rhs = GetGeneralOperand (&token, prog));
 
         node = tree::new_node (node_type_t::OP, op, node_rhs, node);
     }
@@ -464,17 +487,17 @@ static tree::node_t *GetAddOperand (token_t **input_token)
 
 #define EXTRA_CLEAR_ON_ERROR() {;}
 
-static tree::node_t *GetGeneralOperand (token_t **input_token)
+static tree::node_t *GetGeneralOperand (token_t **input_token, program_t *prog)
 {
     PREPARE ();
 
-    if ((node = GetQuant(&token)) != nullptr)
+    if ((node = GetQuant(&token, prog)) != nullptr)
     {
         SUCCESS ();
     }
 
     CHECK_KEYWORD(L_BRACKET);
-    TRY (node = GetExpression (&token));
+    TRY (node = GetExpression (&token, prog));
     CHECK_KEYWORD (R_BRACKET);
 
     SUCCESS ();
@@ -486,7 +509,7 @@ static tree::node_t *GetGeneralOperand (token_t **input_token)
 
 #define EXTRA_CLEAR_ON_ERROR() {;}
 
-static tree::node_t *GetQuant (token_t **input_token)
+static tree::node_t *GetQuant (token_t **input_token, program_t *prog)
 {
     PREPARE();
 
@@ -505,13 +528,13 @@ static tree::node_t *GetQuant (token_t **input_token)
         token++;
         tree::node_t *node_param = nullptr;
 
-        TRY (node = GetExpression (&token));
+        TRY (node = GetExpression (&token, prog));
 
         while (isKEYWORD (SEP))
         {
             token++;
 
-            TRY (node_param = GetExpression (&token));
+            TRY (node_param = GetExpression (&token, prog));
             node = tree::new_node (node_type_t::FICTIOUS, 0, node_param, node);
         }
 

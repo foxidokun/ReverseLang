@@ -4,11 +4,21 @@
 #include"stdlib.h"
 #include"stdio.h"
 
+
+struct name_entry_t
+{
+    char *name;
+    bool is_var;
+    bool is_func;
+};
+
 struct nametable_t
 {
-    char **names;
+    name_entry_t *names;
     unsigned int capacity;
     unsigned int size;
+    unsigned int func_name_cnt;
+    unsigned int var_name_cnt;
 };
 
 namespace nametable {
@@ -98,6 +108,8 @@ namespace program
     void dtor (program_t *program);
 
     void dump_tokens (program_t *program, FILE *stream);
+
+    void save_names (program_t *program, FILE *stream);
 
     int tokenize (const char *const str_beg, size_t size, program_t *program);
     void print_token_func (token_t *token, FILE *stream);

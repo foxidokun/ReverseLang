@@ -10,13 +10,6 @@
 
 #include "lexer.h"
 
-// -------------------------------------------------------------------------------------------------
-// TODO
-// -------------------------------------------------------------------------------------------------
-// 1. Валидация имен переменных, известны ли такие в данный момент. Можно как список глобальных + список локальных
-// 2. Валидация кол-ва переменных у функции
-// -------------------------------------------------------------------------------------------------
-
 const int MAX_NAME_LEN = 128;
 
 const int DEFAULT_NAMETABLE_SIZE = 64;
@@ -208,6 +201,34 @@ void program::print_token_func (token_t *token, FILE *stream)
 }
 
 // -------------------------------------------------------------------------------------------------
+
+void program::save_names (program_t *program, FILE *stream)
+{
+    assert (program != nullptr && "invalid pointer");
+    assert (stream  != nullptr && "invalid pointer");
+
+    fprintf (stream, "%d\n", program->names.var_name_cnt); 
+
+    for (size_t i = 0; i < program->names.size; ++i)
+    {
+        if (program->names.names[i].is_var)
+        {
+            fprintf (stream, "%s\n", program->names.names[i].name);
+        }
+    }
+
+    fprintf (stream, "%d\n", program->names.func_name_cnt); 
+
+    for (size_t i = 0; i < program->names.size; ++i)
+    {
+        if (program->names.names[i].is_func)
+        {
+            fprintf (stream, "%s\n", program->names.names[i].name);
+        }
+    }
+}
+
+// -------------------------------------------------------------------------------------------------
 // NAMETABLE NAMESPACE
 // -------------------------------------------------------------------------------------------------
 
@@ -215,10 +236,12 @@ void nametable::ctor (nametable_t *nametable)
 {
     assert (nametable != nullptr && "invalid pointer");
 
-    nametable->names = (char **) calloc (sizeof (char *), DEFAULT_NAMETABLE_SIZE);
+    nametable->names = (name_entry_t *) calloc (sizeof (name_entry_t), DEFAULT_NAMETABLE_SIZE);
 
-    nametable->size     = 0;
-    nametable->capacity = DEFAULT_NAMETABLE_SIZE;
+    nametable->capacity      = DEFAULT_NAMETABLE_SIZE;
+    nametable->size          = 0;
+    nametable->func_name_cnt = 0;
+    nametable->var_name_cnt  = 0;
 }
 
 void nametable::dtor (nametable_t *nametable)
@@ -227,7 +250,7 @@ void nametable::dtor (nametable_t *nametable)
 
     for (size_t i = 0; i < nametable->size; ++i)
     {
-        free (nametable->names[i]);
+        free (nametable->names[i].name);
     }
 
     free (nametable->names);
@@ -244,7 +267,7 @@ int nametable::insert_name (nametable_t *nametable, const char *name)
 
     for (unsigned int i = 0; i < nametable->size; ++i)
     {
-        if (strcmp (name, nametable->names[i]) == 0)
+        if (strcmp (name, nametable->names[i].name) == 0)
         {
             return (int) i;
         }
@@ -252,11 +275,19 @@ int nametable::insert_name (nametable_t *nametable, const char *name)
 
     if (nametable->size == nametable->capacity)
     {
-        nametable->names    = (char **) realloc (nametable->names, 2 * nametable->capacity * sizeof (char *));
+        nametable->names    = (name_entry_t *) realloc (nametable->names, 2 * nametable->capacity *
+                                                                            sizeof (name_entry_t));
+
+        for (size_t i = nametable->capacity; i < 2 * nametable->capacity; ++i)
+        {
+            nametable->names->is_var  = false;
+            nametable->names->is_func = false;
+        }
+
         nametable->capacity = 2 * nametable->capacity;
     }
 
-    nametable->names[nametable->size] = strdup (name);
+    nametable->names[nametable->size].name = strdup (name);
 
     return (int) nametable->size++;
 }

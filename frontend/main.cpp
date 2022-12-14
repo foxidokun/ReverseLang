@@ -3,6 +3,7 @@
 #include "lexer.h"
 #include "syntax_parser.h"
 #include "compiler.h"
+#include "frontend.h"
 
 int main ()
 {
@@ -18,15 +19,16 @@ int main ()
 
     program::dump_tokens (&prog, stdout);
 
-    tree::node_t *head = GetProgram (prog.tokens);
+    tree::node_t *head = GetProgram (&prog);
 
     assert (head != nullptr && "Invalid head");
 
     tree::graph_dump (head, "Hueta");
 
+    save_ast (&prog, head, fopen ("ast.txt", "w"));
+
     compiler::compile (head, fopen ("test.asm", "w"));
 
-    tree::graph_dump (head, "After compile");
     tree::del_node (head);
     program::dtor (&prog);
 }

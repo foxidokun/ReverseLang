@@ -88,6 +88,9 @@ namespace tree
     int graph_dump (node_t *node, const char *reason_fmt, ...);
     int graph_dump (node_t *node, const char *reason_fmt, va_list args);
 
+    void save_tree (tree_t *tree, FILE *stream);
+    void save_tree (node_t *tree, FILE *stream);
+
     tree::node_t *new_node ();
     tree::node_t *new_node (node_type_t type, int  data);
     tree::node_t *new_node (node_type_t type, op_t op  );
