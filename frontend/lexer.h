@@ -36,6 +36,7 @@ namespace token {
         PROG_END,         // ~nya~
         PRINT,            // __builtin_print__
         INPUT,            // __builtin_input__
+        SQRT,             // __builtin_sqrt__
         L_BRACKET,        // (
         R_BRACKET,        // )
         OPEN_BLOCK,       // {
@@ -65,7 +66,6 @@ namespace token {
         SUB,
         MUL,
         DIV,
-        POW
     };
 }
 

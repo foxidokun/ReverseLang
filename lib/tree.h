@@ -29,7 +29,7 @@ namespace tree
         SUB,
         MUL,
         DIV,
-        POW,
+        SQRT,
         INPUT,
         OUTPUT,
         EQ,     // ==

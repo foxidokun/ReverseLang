@@ -196,7 +196,6 @@ void program::print_token_func (token_t *token, FILE *stream)
                 case token::op::SUB: EMIT ("OP: -");
                 case token::op::MUL: EMIT ("OP: *");
                 case token::op::DIV: EMIT ("OP: /");
-                case token::op::POW: EMIT ("OP: pow");
 
                 default: assert (0 && "unknown op");
             }
@@ -312,6 +311,7 @@ static bool tokenize_keyword (const char **input_str, program_t *program)
     TRY_KEYWORD (PROG_END,              "~nya~")
     TRY_KEYWORD (PRINT,                 "__builtin_print__")
     TRY_KEYWORD (INPUT,                 "__builtin_input__")
+    TRY_KEYWORD (SQRT,                  "__builtin_sqrt__")
     TRY_KEYWORD (L_BRACKET,             "(")
     TRY_KEYWORD (R_BRACKET,             ")")
     TRY_KEYWORD (OPEN_BLOCK,            "{")
@@ -406,7 +406,6 @@ static bool tokenize_op (const char **input_str, program_t *program)
         case '-': token->op = token::op::SUB; break;
         case '*': token->op = token::op::MUL; break;
         case '/': token->op = token::op::DIV; break;
-        case '^': token->op = token::op::POW; break;
 
         default:
             return false;

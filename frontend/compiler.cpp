@@ -191,7 +191,6 @@ static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
         case tree::op_t::SUB: EMIT_BINARY_OP ("sub"); break;
         case tree::op_t::MUL: EMIT_BINARY_OP ("mul"); break;
         case tree::op_t::DIV: EMIT_BINARY_OP ("div"); break;
-        case tree::op_t::POW: EMIT_BINARY_OP ("pow"); break;
 
         case tree::op_t::OUTPUT:
             subtree_compile (compiler, node->right, stream);
