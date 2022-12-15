@@ -1,4 +1,6 @@
-#include <assert.h>
+#include <cassert>
+#include <cstdio>
+#include <string.h>
 #include "../lib/file.h"
 #include "../lib/log.h"
 #include "../lib/common.h"
@@ -7,27 +9,69 @@
 #include "frontend.h"
 #include "codegen.h"
 
-int main ()
+// -------------------------------------------------------------------------------------------------
+static int  direct_frontend (const char **argv, const file_t *input_file, FILE *output_file);
+static int reverse_frontend (const char **argv, const file_t *input_file, FILE *output_file);
+// -------------------------------------------------------------------------------------------------
+
+#define ERR_CASE(cond, fmt, ...)                    \
+{                                                   \
+    if (cond) {                                     \
+        fprintf (stderr, fmt "\n", ##__VA_ARGS__);  \
+        return ERROR;                               \
+    }                                               \
+}
+
+// -------------------------------------------------------------------------------------------------
+
+int main (int argc, const char* argv[])
 {
-    file_t input = open_ro_file ("input.txt");
+    if ((argc != 3 && argc != 4) || strcmp (argv[1], "-h"))
+    {
+        fprintf (stderr, "Usage: ./front (-r) <input file> <output file>\n");
+        fprintf (stderr, "      -r for reverse codegen from ast dump\n");
+        return ERROR;
+    }
+
+    file_t input_file = open_ro_file (argv[1]);
+    ERR_CASE (input_file.content == nullptr, "Failed to open file %s", argv[1]);
+
+    FILE *output_file = fopen (argv[2], "w");
+    ERR_CASE (output_file != nullptr, "Failed to open file %s", argv[2]);
+
+    int res = 15; // random poison value
+
+    if (strcmp (argv[1], "-r") != 0) {
+        res = direct_frontend  (argv, &input_file, output_file);
+    } else {
+        res = reverse_frontend (argv, &input_file, output_file);
+    }
+
+    fclose (output_file);
+    unmap_ro_file (input_file);
+    return res;
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static int direct_frontend (const char **argv, const file_t *input_file, FILE *output_file)
+{
+    assert (argv        != nullptr && "invalid pointer");
+    assert (input_file  != nullptr && "invalid pointer");
+    assert (output_file != nullptr && "invalid pointer");
 
     program_t prog = {};
     program::ctor (&prog);
 
-    if (program::tokenize (input.content, input.size, &prog) != 0)
-    {
-        assert (0 && "Fail tokenization");
+    if (program::tokenize (input_file->content, input_file->size, &prog) != 0) {
+        ERR_CASE (false, "Failed to tokenise input file");
     }
-
-    program::dump_tokens (&prog, stdout);
 
     if (program::parse_into_ast (&prog) == ERROR) {
-        LOG (log::ERR, "Failed to parse input file");
-        return ERROR;
+        ERR_CASE (false, "Failed to parse input file into AST");
     }
 
-    tree::graph_dump (prog.ast, "Generated ast");
-    program::save_ast (&prog, fopen ("ast.txt", "w"));
+    program::save_ast (&prog, output_file);
 
     tree::del_node (prog.ast);
     program::dtor (&prog);
@@ -35,17 +79,19 @@ int main ()
     return 0;
 }
 
-int main_gen ()
+static int reverse_frontend (const char **argv, const file_t *input_file, FILE *output_file)
 {
-    file_t input = open_ro_file ("ast.txt");
-
+    assert (argv        != nullptr && "invalid pointer");
+    assert (input_file  != nullptr && "invalid pointer");
+    assert (output_file != nullptr && "invalid pointer");
+    
     program_t prog = {};
     program::ctor (&prog);
 
-    program::load_ast (&prog, input.content);
-    tree::graph_dump (prog.ast, "Generated ast");
+    ERR_CASE (program::load_ast (&prog, input_file->content) == ERROR, 
+                                                                    "Failed to load AST from dump");
 
-    program::codegen (&prog, fopen ("reversed.txt", "w"));
+    program::codegen (&prog, output_file);
 
     tree::del_node (prog.ast);
     program::dtor (&prog);
