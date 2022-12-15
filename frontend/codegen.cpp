@@ -237,10 +237,9 @@ static bool codegen_func_args (tree::node_t *node, program_t *prog, FILE *stream
     return not_first_arg;
 }
 
-
 // -------------------------------------------------------------------------------------------------
 
-static void codegen_func_call(tree::node_t *node, program_t *prog, FILE *stream)
+static void codegen_func_call (tree::node_t *node, program_t *prog, FILE *stream)
 {
     assert (node   != nullptr && "invalid pointer");
     assert (prog   != nullptr && "invalid pointer");
