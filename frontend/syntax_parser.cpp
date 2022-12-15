@@ -26,12 +26,6 @@
 using tree::node_type_t;
 using tree::op_t;
 
-//TODO
-// Добавить в токены строку на которой был получен, чтобы адекватные сообщения об ошибкахa
-// Проверки на существование имен переменных и функций перед их использованием через структуры в prog
-// Как-то избавиться от лишних "ошибок" в консоли через какой-нибудь флаг через все функции
-// Валидация кол-ва аргументов
-
 // -------------------------------------------------------------------------------------------------
 
 #define PREPARE()                       \
@@ -46,7 +40,7 @@ using tree::op_t;
 #define SUCCESS()               \
 {                               \
     *input_token = token;       \
-    printf ("success in %s with last node: ", __func__);\
+    printf ("success in %s with last node on line %d: ", __func__, token->line);\
     program::print_token_func (token, stdout);          \
     printf ("\n");              \
     return node;                \
@@ -96,7 +90,6 @@ using tree::op_t;
 {                                                                                           \
     new_name_index = nametable::insert_name (&prog->type##_names,                           \
                                                 prog->all_names.names[orig_name_index]);    \
-    LOG (log::ERR, "Setting %d to type %s index %d", orig_name_index, #type, new_name_index);\
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -126,8 +119,8 @@ int program::parse_into_ast (program_t *prog)
 
     prog->ast = GetProgram (prog);
 
-    if (prog->ast == nullptr)   return ERROR;
-    else                        return 0;
+    if (prog->ast == nullptr) { return ERROR; }
+    else                      { return 0;     }
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -304,7 +297,7 @@ static tree::node_t *GetIfBlock (token_t **input_token, program_t *prog)
     CHECK_KEYWORD (IF);
 
     CHECK_KEYWORD (OPEN_BLOCK);
-    TRY (node = GetBody (&token, prog));
+    TRY (node = GetSubProgram (&token, prog));
     CHECK_KEYWORD (CLOSE_BLOCK);
 
     if (isKEYWORD (ELSE))
@@ -312,7 +305,7 @@ static tree::node_t *GetIfBlock (token_t **input_token, program_t *prog)
         token++;
 
         CHECK_KEYWORD (OPEN_BLOCK);
-        TRY (tmp_node = GetBody (&token, prog));
+        TRY (tmp_node = GetSubProgram (&token, prog));
         CHECK_KEYWORD (CLOSE_BLOCK);
 
         node = tree::new_node (node_type_t::ELSE, 0, node, tmp_node);
@@ -624,14 +617,17 @@ static tree::node_t *GetQuant (token_t **input_token, program_t *prog)
         token++;
         tree::node_t *node_param = nullptr;
 
-        TRY (node = GetExpression (&token, prog));
-
-        while (isKEYWORD (SEP))
+        if (!isKEYWORD (R_BRACKET))
         {
-            token++;
+            TRY (node = GetExpression (&token, prog));
 
-            TRY (node_param = GetExpression (&token, prog));
-            node = tree::new_node (node_type_t::FICTIOUS, 0, node_param, node);
+            while (isKEYWORD (SEP))
+            {
+                token++;
+
+                TRY (node_param = GetExpression (&token, prog));
+                node = tree::new_node (node_type_t::FICTIOUS, 0, node_param, node);
+            }
         }
 
         CHECK_KEYWORD (R_BRACKET);
