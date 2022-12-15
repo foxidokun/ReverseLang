@@ -1,4 +1,4 @@
-all: dirs front back cpu
+all: dirs front middle back cpu
 
 dirs: dump bin 
 
@@ -10,6 +10,9 @@ bin:
 
 front:
 	cd frontend && make
+
+middle:
+	cd middleend && make
 
 back:
 	cd backend && make
