@@ -229,15 +229,15 @@ void tree::save_tree (tree_t *tree, FILE *stream)
     save_tree (tree->head_node, stream);
 }
 
-void tree::save_tree (node_t *node, FILE *stream)
+void tree::save_tree (node_t *start_node, FILE *stream)
 {
-    assert (node   != nullptr && "invalid pointer");
-    assert (stream != nullptr && "invalid pointer");
+    assert (start_node != nullptr && "invalid pointer");
+    assert (stream     != nullptr && "invalid pointer");
 
     walk_f dump_pre = [](node_t *node, void *param, bool)
     {
         FILE *output = (FILE *) param;
-        fprintf (output, "{ %d %d\n", node->type, node->data);
+        fprintf (output, "{ %d %d\n", (int) node->type, node->data);
         return true;
     };
 
@@ -248,9 +248,9 @@ void tree::save_tree (node_t *node, FILE *stream)
         return true;
     };
 
-    dfs_exec (node, dump_pre,  stream,
-                    nullptr,   nullptr,
-                    dump_post, stream);
+    dfs_exec (start_node, dump_pre,  stream,
+                          nullptr,   nullptr,
+                          dump_post, stream);
 }
 
 // -------------------------------------------------------------------------------------------------
