@@ -26,19 +26,14 @@ static void realloc_tokens (program_t *program);
 
 static bool is_keyword_alpha (char ch);
 
+static void skip_spaces (const char **str, program_t *program);
+
 // -------------------------------------------------------------------------------------------------
 
 
-#define SKIP_SPACES()           \
-{                               \
-    while (isspace(*str))       \
-    {                           \
-        if (*str == '\n')       \
-        {                       \
-            program->line++;    \
-        }                       \
-        str++;                  \
-    }                           \
+#define SKIP_SPACES()                           \
+{                                               \
+    skip_spaces (&str, program);                \
 }
 
 #define ERR_CASE(cond)                                                          \
@@ -50,7 +45,7 @@ static bool is_keyword_alpha (char ch);
         fprintf (__log_stream_48de, "\t--> ");                                  \
         print_token_func (&program->tokens[program->size-1], __log_stream_48de);  \
         fprintf (__log_stream_48de, " <--\n");                                  \
-        printf ("str: [%s]", str);                                              \
+        printf ("str: <<%s>>\n", str);                                              \
         return ERROR;                                                           \
     }                                                                           \
 }
@@ -480,4 +475,39 @@ static bool is_keyword_alpha (char ch)
             return false;
     }
 
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static void skip_spaces (const char **const str, program_t *program)
+{
+    assert ( str    != nullptr && "invalid pointer");
+    assert (*str    != nullptr && "invalid pointer");
+    assert (program != nullptr && "invalid pointer");
+
+    bool skipped = true;
+
+    while (skipped)
+    {
+        skipped = false;
+
+        while (isspace(**str))                       
+        {                                           
+            if (**str == '\n')                       
+            {                                       
+                program->line++;                    
+            }  
+            skipped = true;                                     
+            (*str)++;                                  
+        }   
+
+        if (**str == '#')                            
+        {                                           
+            skipped = true;
+            while (**str != '\0' && **str != '\n')    
+            {      
+                (*str)++;                              
+            }                                       
+        }      
+    }                                     
 }
