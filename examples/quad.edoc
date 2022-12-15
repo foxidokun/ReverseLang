@@ -41,7 +41,7 @@
 
 (c, b, a) square_solver fn
 [
-    (0 == a) if
+    (0 == a) if  # It is linear equatation actually
     {
         ;(c, b) linear_solve
         ;0 return
@@ -100,7 +100,7 @@
     ;0 return
 ]
 
-
+# ax^2 + bx + c = 0
 
 ; () input = a let
 ; () input = b let
