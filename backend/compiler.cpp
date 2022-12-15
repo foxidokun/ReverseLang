@@ -371,9 +371,12 @@ static bool compile_func_def (compiler_t *compiler, tree::node_t *node, FILE *st
 static int compile_func_def_args (compiler_t *compiler, tree::node_t *node, FILE *stream)
 {
     assert (compiler != nullptr && "invalid pointer");
-    assert (node     != nullptr && "invalid pointer");
     assert (stream   != nullptr && "invalid pointer");
-    
+
+    if (node == nullptr) {
+        return 0;
+    }
+
     int num_of_args = 0;
 
     if (node->type == tree::node_type_t::FICTIOUS) {
