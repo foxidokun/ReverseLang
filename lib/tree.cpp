@@ -456,8 +456,8 @@ static bool node_codegen (tree::node_t *node, void *stream_void, bool)
     char buf[MAX_NODE_LEN] = "";
     format_node (buf, node);
 
-    fprintf (stream, "node_%p [label = \"%s | {l: %p | r: %p}\"]\n",
-                                                        node, buf,
+    fprintf (stream, "node_%p [label = \"%s | {cur: %p | l: %p | r: %p}\"]\n",
+                                                        node, buf, node,
                                                         node->left, node->right);
 
     if (node->left != nullptr)
