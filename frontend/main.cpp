@@ -5,6 +5,7 @@
 #include "lexer.h"
 #include "syntax_parser.h"
 #include "frontend.h"
+#include "codegen.h"
 
 int main ()
 {
@@ -26,8 +27,28 @@ int main ()
     }
 
     tree::graph_dump (prog.ast, "Generated ast");
-    save_ast (&prog, prog.ast, fopen ("ast.txt", "w"));
+    program::save_ast (&prog, fopen ("ast.txt", "w"));
 
     tree::del_node (prog.ast);
     program::dtor (&prog);
+
+    return 0;
+}
+
+int main_gen ()
+{
+    file_t input = open_ro_file ("ast.txt");
+
+    program_t prog = {};
+    program::ctor (&prog);
+
+    program::load_ast (&prog, input.content);
+    tree::graph_dump (prog.ast, "Generated ast");
+
+    program::codegen (&prog, fopen ("reversed.txt", "w"));
+
+    tree::del_node (prog.ast);
+    program::dtor (&prog);
+
+    return 0;
 }

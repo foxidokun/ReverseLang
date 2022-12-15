@@ -5,6 +5,10 @@
 #include "lexer.h"
 #include "../lib/tree.h"
 
-void save_ast (program_t *prog, tree::node_t *ast, FILE *stream);
+namespace program {
+    void save_ast (program_t *prog, FILE *stream);
+
+    int load_ast (program_t *prog, const char *dump);
+}
 
 #endif
