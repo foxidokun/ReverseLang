@@ -7,11 +7,11 @@
 #include "syntax_parser.h"
 
 // Program        ::= PROG_BEG (SubProgram | Func)* PROG_END
-// Func           ::= FUNC_OPEN_BLOCK Subprogram FUNC_CLOSE_BLOCK L_BRACKET (NAME (SEP NAME)) R_BRACKET NAME FN
+// Func           ::= L_BRACKET (NAME (SEP NAME)) R_BRACKET NAME FN FUNC_OPEN_BLOCK Subprogram FUNC_CLOSE_BLOCK
 // SubProgram     ::= (FlowBlock)+
 // FlowBlock      ::= IfBlock | WhileBlock | OPEN_BLOCK Body CLOSE_BLOCK | Body
-// WhileBlock     ::= OPEN_BLOCK Body CLOSE_BLOCK L_BRACKET Expression R_BRACKET WHILE
-// IfBlock        ::= (OPEN_BLOCK Body CLOSE_BLOCK ELSE) OPEN_BLOCK Body CLOSE_BLOCK L_BRACKET Expression R_BRACKET IF
+// WhileBlock     ::= L_BRACKET Expression R_BRACKET WHILE OPEN_BLOCK Body CLOSE_BLOCK
+// IfBlock        ::= L_BRACKET Expression R_BRACKET IF OPEN_BLOCK Body CLOSE_BLOCK (ELSE OPEN_BLOCK Body CLOSE_BLOCK) 
 // Body           ::= (Line)+
 // Line           ::= BREAK Expression RETURN | BREAK Expression (= NAME (LET))
 // Expression     ::= PRINT Expression | SQRT Expression | OrOperand (|| OrOperand)+
