@@ -28,7 +28,7 @@ namespace compiler
     void ctor (compiler_t *compiler);
     void dtor (compiler_t *compiler);
 
-    void compile (tree::node_t *node, FILE *stream);
+    bool compile (tree::node_t *node, FILE *stream);
 }
 
 #endif
