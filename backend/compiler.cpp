@@ -163,16 +163,19 @@ static void subtree_compile (compiler_t *compiler, tree::node_t *node, FILE *str
     subtree_compile (compiler, node->right, stream); \
     EMIT (opcode);
 
-#define EMIT_COMPARATOR(opcode)                      \
-    subtree_compile (compiler, node->left,  stream); \
-    subtree_compile (compiler, node->right, stream); \
+#define EMIT_PUSH_TRUE_FALSE(jump_opcode)            \
     label_index = get_label_index (compiler);        \
-    EMIT (opcode " push_one_%d", label_index);       \
+    EMIT (jump_opcode " push_one_%d", label_index);  \
     EMIT ("    push 0");                             \
     EMIT ("    jmp end_%d", label_index);            \
     EMIT ("push_one_%d:", label_index);              \
     EMIT ("    push 1");                             \
     EMIT ("end_%d:", label_index);
+
+#define EMIT_COMPARATOR(opcode)                      \
+    subtree_compile (compiler, node->left,  stream); \
+    subtree_compile (compiler, node->right, stream); \
+    EMIT_PUSH_TRUE_FALSE (opcode)
     
 
 static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
@@ -231,26 +234,26 @@ static void compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
         case tree::op_t::NOT:
             subtree_compile (compiler, node->right, stream);
             EMIT ("push 0")
-            EMIT_COMPARATOR ("je");
+            EMIT_PUSH_TRUE_FALSE ("je");
             break;
         
         case tree::op_t::AND:
             subtree_compile (compiler, node->left, stream);
             EMIT ("push 0")
-            EMIT_COMPARATOR ("jne");
+            EMIT_PUSH_TRUE_FALSE ("jne");
             subtree_compile (compiler, node->right, stream);
             EMIT ("push 0")
-            EMIT_COMPARATOR ("jne");
-            EMIT_COMPARATOR ("je");
+            EMIT_PUSH_TRUE_FALSE ("jne");
+            EMIT_PUSH_TRUE_FALSE ("je");
             break;
 
         case tree::op_t::OR:
             subtree_compile (compiler, node->left, stream);
             EMIT ("push 0")
-            EMIT_COMPARATOR ("jne");
+            EMIT_PUSH_TRUE_FALSE ("jne");
             subtree_compile (compiler, node->right, stream);
             EMIT ("push 0")
-            EMIT_COMPARATOR ("jne");
+            EMIT_PUSH_TRUE_FALSE ("jne");
             EMIT ("add");
             break;
 

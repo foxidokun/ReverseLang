@@ -14,9 +14,12 @@
 // IfBlock        ::= (OPEN_BLOCK Body CLOSE_BLOCK ELSE) OPEN_BLOCK Body CLOSE_BLOCK L_BRACKET Expression R_BRACKET IF
 // Body           ::= (Line)+
 // Line           ::= BREAK Expression RETURN | BREAK Expression (= NAME (LET))
-// Expression     ::= PRINT Expression | SQRT Expression | CompOperand (<=> CompOperand)
+// Expression     ::= PRINT Expression | SQRT Expression | OrOperand (|| OrOperand)+
+// OrOperand      ::= AndOperand (&& AndOperand)+
+// AndOperand     ::= CompOperand (<=> CompOperand)
 // CompOperand    ::= AddOperand  ([+-] AddOperand)* 
-// AddOperand     ::= GeberalOperand  ([/ *] GeneralOperand )*
+// AddOperand     ::= MulOperand  ([/ *] MulOperand )*
+// MulOperand     ::= GeneralOperand (NOT)
 // GeneralOperand ::= Quant | L_BRACKET Expression R_BRACKET
 // Quant          ::= VAR | VAL | INPUT | L_BRACKET (Expression (SEM Expression)) R_BRACKET NAME
 
@@ -107,8 +110,11 @@ static tree::node_t *GetIfBlock        (token_t **input_token, program_t *prog);
 static tree::node_t *GetBody           (token_t **input_token, program_t *prog);
 static tree::node_t *GetLine           (token_t **input_token, program_t *prog);
 static tree::node_t *GetExpression     (token_t **input_token, program_t *prog);
+static tree::node_t *GetOrOperand      (token_t **input_token, program_t *prog);
+static tree::node_t *GetAndOperand     (token_t **input_token, program_t *prog);
 static tree::node_t *GetCompOperand    (token_t **input_token, program_t *prog);
 static tree::node_t *GetAddOperand     (token_t **input_token, program_t *prog);
+static tree::node_t *GetMulOperand     (token_t **input_token, program_t *prog);
 static tree::node_t *GetGeneralOperand (token_t **input_token, program_t *prog);
 static tree::node_t *GetQuant          (token_t **input_token, program_t *prog);
 
@@ -385,10 +391,6 @@ static tree::node_t *GetLine (token_t **input_token, program_t *prog)
 // -------------------------------------------------------------------------------------------------
 
 #define EXTRA_CLEAR_ON_ERROR() {;}
-#define TRANSLATE_KEYWORD(op_in)  \
-    case token::keyword::op_in:   \
-        node = tree::new_node (tree::node_type_t::OP, tree::op_t::op_in, node_rhs, node); \
-        break;                    \
 
 static tree::node_t *GetExpression (token_t **input_token, program_t *prog)
 {
@@ -412,31 +414,88 @@ static tree::node_t *GetExpression (token_t **input_token, program_t *prog)
     }
     else
     {
-        TRY (node = GetCompOperand (&token, prog));
+        tree::node_t *node_rhs = nullptr;
 
-        if (isKEYWORD (GE) || isKEYWORD (LE) || isKEYWORD (GT) || isKEYWORD (LT))
+        TRY (node = GetOrOperand (&token, prog));
+
+        while (isKEYWORD (OR))
         {
-            tree::node_t *node_rhs = nullptr;
-            token::keyword comp_op = token->keyword;
             token++;
 
-            TRY (node_rhs = GetCompOperand (&token, prog));
+            TRY (node_rhs = GetOrOperand (&token, prog));
 
-            #pragma GCC diagnostic push
-            #pragma GCC diagnostic ignored "-Wswitch-enum"
-            switch (comp_op) {
-                TRANSLATE_KEYWORD (GE);
-                TRANSLATE_KEYWORD (LE);
-                TRANSLATE_KEYWORD (LT);
-                TRANSLATE_KEYWORD (GT);
-                
-                default: assert (0 && "Logic error: incorrect if condition");
-            }
-            #pragma GCC diagnostic pop
+            node = tree::new_node (node_type_t::OP, op_t::OR, node_rhs, node);
         }
     }
 
     SUCCESS();
+}
+
+#undef EXTRA_CLEAR_ON_ERROR
+
+// -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
+
+static tree::node_t *GetOrOperand (token_t **input_token, program_t *prog)
+{
+    PREPARE ();
+
+    tree::node_t *node_rhs = nullptr;
+
+    TRY (node = GetAndOperand (&token, prog));
+
+    while (isKEYWORD (AND))
+    {
+        token++;
+
+        TRY (node_rhs = GetAndOperand (&token, prog));
+
+        node = tree::new_node (node_type_t::OP, op_t::AND, node_rhs, node);
+    }
+
+    SUCCESS ();
+}
+
+#undef EXTRA_CLEAR_ON_ERROR
+
+// -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
+#define TRANSLATE_KEYWORD(op_in)  \
+    case token::keyword::op_in:   \
+        node = tree::new_node (tree::node_type_t::OP, tree::op_t::op_in, node_rhs, node); \
+        break;
+
+static tree::node_t *GetAndOperand (token_t **input_token, program_t *prog)
+{
+    PREPARE ();
+
+    TRY (node = GetCompOperand (&token, prog));
+
+    if (isKEYWORD (GE) || isKEYWORD (LE) || isKEYWORD (GT) ||
+        isKEYWORD (LT) || isKEYWORD (EQ) || isKEYWORD (NEQ))
+    {
+        tree::node_t *node_rhs = nullptr;
+        token::keyword comp_op = token->keyword;
+        token++;
+        TRY (node_rhs = GetCompOperand (&token, prog));
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wswitch-enum"
+        switch (comp_op) {
+            TRANSLATE_KEYWORD (GE);
+            TRANSLATE_KEYWORD (LE);
+            TRANSLATE_KEYWORD (LT);
+            TRANSLATE_KEYWORD (GT);
+            TRANSLATE_KEYWORD (EQ);
+            TRANSLATE_KEYWORD (NEQ);
+            
+            default: assert (0 && "Logic error: incorrect if condition");
+        }
+        #pragma GCC diagnostic pop
+    }
+
+    SUCCESS ();
 }
 
 #undef TRANSLATE_KEYWORD
@@ -480,19 +539,40 @@ static tree::node_t *GetAddOperand (token_t **input_token, program_t *prog)
     tree::node_t *node_rhs = nullptr;
     op_t op = tree::op_t::INPUT; // Poison value
 
-    TRY (node = GetGeneralOperand (&token, prog));
+    TRY (node = GetMulOperand (&token, prog));
 
     while (isOP(MUL) || isOP(DIV))
     {
         op = isOP (MUL) ? op_t::MUL : op_t::DIV;
         token++;
 
-        TRY (node_rhs = GetGeneralOperand (&token, prog));
+        TRY (node_rhs = GetMulOperand (&token, prog));
 
         node = tree::new_node (node_type_t::OP, op, node_rhs, node);
     }
 
     SUCCESS();
+}
+
+#undef EXTRA_CLEAR_ON_ERROR
+
+// -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
+
+static tree::node_t *GetMulOperand (token_t **input_token, program_t *prog)
+{
+    PREPARE ();
+
+    TRY (node = GetGeneralOperand (&token, prog));
+
+    if (isKEYWORD (NOT))
+    {
+        token++;
+        node = tree::new_node (node_type_t::OP, op_t::NOT, nullptr, node);
+    }
+
+    SUCCESS ();
 }
 
 #undef EXTRA_CLEAR_ON_ERROR
