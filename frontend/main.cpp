@@ -25,6 +25,7 @@ int main ()
         return ERROR;
     }
 
+    tree::graph_dump (prog.ast, "Generated ast");
     save_ast (&prog, prog.ast, fopen ("ast.txt", "w"));
 
     tree::del_node (prog.ast);
