@@ -24,6 +24,8 @@ static bool tokenize_op      (const char **str, program_t *program);
 
 static void realloc_tokens (program_t *program);
 
+static bool is_keyword_alpha (char ch);
+
 // -------------------------------------------------------------------------------------------------
 
 
@@ -92,7 +94,7 @@ int program::tokenize (const char *const str_beg, size_t size, program_t *progra
 
     while ((size_t) (str - str_beg) < size)
     {
-        if (isalpha (*str) || (*str == '=' || *str == '(' || *str == ')' || *str == '{' || *str == '}' || *str == ';' || *str == ',' || *str == '_' || *str == '~' || *str == '<' || *str == '>' || *str == '!' || *str == '&' || *str == '|' || *str == '[' || *str == ']'))
+        if (is_keyword_alpha (*str))
         {
             if ( !tokenize_keyword(&str, program) )
             {
@@ -444,4 +446,38 @@ static void realloc_tokens (program_t *program)
 
     program->tokens   = (token_t *) realloc (program->tokens, 2 * program->capacity * sizeof (token_t));
     program->capacity = 2 * program->capacity;
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static bool is_keyword_alpha (char ch)
+{
+    if (isalpha (ch)) {
+        return true;
+    }
+
+    switch (ch)
+    {
+        case '=':
+        case '(':
+        case ')':
+        case '{':
+        case '}':
+        case '[':
+        case ']':
+        case ';':
+        case ',':
+        case '_':
+        case '~':
+        case '<':
+        case '>':
+        case '!':
+        case '&':
+        case '|':
+            return true;
+
+        default:
+            return false;
+    }
+
 }
