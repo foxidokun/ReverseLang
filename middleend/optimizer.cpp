@@ -38,8 +38,8 @@ static bool subtree_optimize_const (tree::node_t *node)
     bool changed = false;
 
     if (node->type != tree::node_type_t::OP) {
-        if (node->left)  { OPTIMIZE (node->left ); }
-        if (node->right) { OPTIMIZE (node->right); }
+        if (node->left != nullptr) { OPTIMIZE (node->left ); }
+        if (node->right!= nullptr) { OPTIMIZE (node->right); }
 
         return changed;
     }
@@ -61,12 +61,16 @@ static bool subtree_optimize_const (tree::node_t *node)
         case tree::op_t::OR:
             return optimize_const_comp (node);
 
-        case tree::op_t::INPUT:
         case tree::op_t::OUTPUT:
         case tree::op_t::ASSIG:
         case tree::op_t::SQRT:
         case tree::op_t::DIV:
             return subtree_optimize_const (node->right); 
+        
+        case tree::op_t::INPUT:
+            return false;
+
+        default: assert (0 && "Unexpected node");
     }
 }
 
@@ -90,17 +94,20 @@ static bool optimize_const_calc (tree::node_t *node)
     OPTIMIZE (node->left);
     OPTIMIZE (node->right);
 
-    if (isVAL (node->left) && isVAL (node->right))
-    {
-        switch ((tree::op_t) node->data) {
-            case tree::op_t::ADD: SET_VALUE (node->left->data + node->right->data); break;
-            case tree::op_t::SUB: SET_VALUE (node->left->data - node->right->data); break;
-            case tree::op_t::MUL: SET_VALUE (node->left->data * node->right->data); break;
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wswitch-enum"
+        if (isVAL (node->left) && isVAL (node->right))
+        {
+            switch ((tree::op_t) node->data) {
+                case tree::op_t::ADD: SET_VALUE (node->left->data + node->right->data); break;
+                case tree::op_t::SUB: SET_VALUE (node->left->data - node->right->data); break;
+                case tree::op_t::MUL: SET_VALUE (node->left->data * node->right->data); break;
 
-            default:
-                assert (0 && "Unexpected node"); 
+                default:
+                    assert (0 && "Unexpected node"); 
+            }
         }
-    }
+    #pragma GCC diagnostic pop
 
     return changed;
 }
@@ -128,23 +135,26 @@ static bool optimize_const_comp (tree::node_t *node)
     }
     OPTIMIZE (node->right);
 
-    if (isVALorNIL (node->left) && isVALorNIL (node->right))
-    {
-        switch ((tree::op_t) node->data) {
-            case tree::op_t::EQ:  SET_COMP_RESULT (==);
-            case tree::op_t::GT:  SET_COMP_RESULT (>);
-            case tree::op_t::LT:  SET_COMP_RESULT (<);
-            case tree::op_t::GE:  SET_COMP_RESULT (>=);
-            case tree::op_t::LE:  SET_COMP_RESULT (<=);
-            case tree::op_t::NEQ: SET_COMP_RESULT (!=);
-            case tree::op_t::AND: SET_COMP_RESULT (&&);
-            case tree::op_t::OR:  SET_COMP_RESULT (||);
-            
-            case tree::op_t::NOT: SET_VALUE(!node->right->data); break;
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wswitch-enum"
+        if (isVALorNIL (node->left) && isVALorNIL (node->right))
+        {
+            switch ((tree::op_t) node->data) {
+                case tree::op_t::EQ:  SET_COMP_RESULT (==);
+                case tree::op_t::GT:  SET_COMP_RESULT (>);
+                case tree::op_t::LT:  SET_COMP_RESULT (<);
+                case tree::op_t::GE:  SET_COMP_RESULT (>=);
+                case tree::op_t::LE:  SET_COMP_RESULT (<=);
+                case tree::op_t::NEQ: SET_COMP_RESULT (!=);
+                case tree::op_t::AND: SET_COMP_RESULT (&&);
+                case tree::op_t::OR:  SET_COMP_RESULT (||);
+                
+                case tree::op_t::NOT: SET_VALUE(!node->right->data); break;
 
-            default: assert (0 && "Invalid call");
+                default: assert (0 && "Invalid call");
+            }
         }
-    }
+    #pragma GCC diagnostic pop
 
     return changed;
 }
