@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <cstdio>
+#include <cstdlib>
 #include "../lib/log.h"
 #include "../lib/common.h"
 #include "lexer.h"
@@ -88,9 +89,11 @@ using tree::op_t;
 #define isNEXT_KEYWORD(expected_kw) ((token+1)->type    == token::type_t::KEYWORD && \
                                      (token+1)->keyword == token::keyword::expected_kw)
 
-#define SET_NAME_TYPE(name_index, type)                                              \
-{                                                                                    \
-    nametable::insert_name (&prog->type##_names, prog->all_names.names[name_index]); \
+#define SET_NAME_TYPE(orig_name_index, new_name_index, type)                                \
+{                                                                                           \
+    new_name_index = nametable::insert_name (&prog->type##_names,                           \
+                                                prog->all_names.names[orig_name_index]);    \
+    LOG (log::ERR, "Setting %d to type %s index %d", orig_name_index, #type, new_name_index);\
 }
 
 // -------------------------------------------------------------------------------------------------
@@ -165,13 +168,14 @@ static tree::node_t *GetFunc (token_t **input_token, program_t *prog)
 {
     PREPARE();
     tree::node_t* arg_node = nullptr;
+    int real_name = -1;
 
     CHECK_KEYWORD (L_BRACKET);
     
     if (isTYPE (NAME))
     {
-        SET_NAME_TYPE (token->name, var);
-        arg_node = tree::new_node (node_type_t::VAR, token->name);
+        SET_NAME_TYPE (token->name, real_name, var);
+        arg_node = tree::new_node (node_type_t::VAR, real_name);
         token++;
 
         while (isKEYWORD (SEP))
@@ -179,10 +183,10 @@ static tree::node_t *GetFunc (token_t **input_token, program_t *prog)
             token++;
 
             EXPECT (isTYPE (NAME));
-            SET_NAME_TYPE (token->name, var);
+            SET_NAME_TYPE (token->name, real_name, var);
 
             arg_node = tree::new_node (node_type_t::FICTIOUS, 0, 
-                                        tree::new_node (node_type_t::VAR, token->name),
+                                        tree::new_node (node_type_t::VAR, real_name),
                                         arg_node);
             token++;
         }
@@ -191,8 +195,8 @@ static tree::node_t *GetFunc (token_t **input_token, program_t *prog)
     CHECK_KEYWORD (R_BRACKET);
     EXPECT (isTYPE(NAME));
     int func_name = token->name;
+    SET_NAME_TYPE (token->name, func_name, func);
     token++;
-    SET_NAME_TYPE (func_name, func);
     
     CHECK_KEYWORD (FN);
 
@@ -354,6 +358,7 @@ static tree::node_t *GetLine (token_t **input_token, program_t *prog)
 
         EXPECT (isTYPE (NAME));
         int var_name = token->name;
+        SET_NAME_TYPE (token->name, var_name, var);
         node = tree::new_node (node_type_t::OP, op_t::ASSIG, tree::new_node(node_type_t::VAR, var_name), node);
         token++;
 
@@ -361,7 +366,6 @@ static tree::node_t *GetLine (token_t **input_token, program_t *prog)
         {
             token++;
             var_def = tree::new_node (node_type_t::VAR_DEF, var_name);
-            SET_NAME_TYPE (var_name, var);
         }
     }
     else if (isKEYWORD (RETURN))
@@ -522,10 +526,12 @@ static tree::node_t *GetGeneralOperand (token_t **input_token, program_t *prog)
 static tree::node_t *GetQuant (token_t **input_token, program_t *prog)
 {
     PREPARE();
+    int real_name = -1;
 
     if (isTYPE(NAME))
     {
-        node = tree::new_node (tree::node_type_t::VAR, token->name);
+        SET_NAME_TYPE (token->name, real_name, var);
+        node = tree::new_node (tree::node_type_t::VAR, real_name);
         token++;
     }
     else if (isTYPE(VAL))
@@ -550,10 +556,10 @@ static tree::node_t *GetQuant (token_t **input_token, program_t *prog)
 
         CHECK_KEYWORD (R_BRACKET);
         EXPECT (isTYPE (NAME));
-        int name = token->name;
+        SET_NAME_TYPE (token->name, real_name, func);
+        node = tree::new_node (node_type_t::FUNC_CALL, real_name, nullptr, node);
+        
         token++;
-
-        node = tree::new_node (node_type_t::FUNC_CALL, name, nullptr, node);
     }
     else if (isKEYWORD (INPUT))
     {
