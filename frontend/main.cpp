@@ -10,8 +10,8 @@
 #include "codegen.h"
 
 // -------------------------------------------------------------------------------------------------
-static int  direct_frontend (const char **argv, const file_t *input_file, FILE *output_file);
-static int reverse_frontend (const char **argv, const file_t *input_file, FILE *output_file);
+static int  direct_frontend (const file_t *input_file, FILE *output_file);
+static int reverse_frontend (const file_t *input_file, FILE *output_file);
 // -------------------------------------------------------------------------------------------------
 
 #define ERR_CASE(cond, fmt, ...)                    \
@@ -33,18 +33,23 @@ int main (int argc, const char* argv[])
         return ERROR;
     }
 
-    file_t input_file = open_ro_file (argv[1]);
+    int flag_cnt = 0;
+    if (strcmp (argv[1], "-r") == 0) {
+        flag_cnt = 1;
+    }
+
+    file_t input_file = open_ro_file (argv[1+flag_cnt]);
     ERR_CASE (input_file.content == nullptr, "Failed to open file %s", argv[1]);
 
-    FILE *output_file = fopen (argv[2], "w");
+    FILE *output_file = fopen (argv[2+flag_cnt], "w");
     ERR_CASE (output_file == nullptr, "Failed to open file %s", argv[2]);
 
     int res = 15; // random poison value
 
-    if (strcmp (argv[1], "-r") != 0) {
-        res = direct_frontend  (argv, &input_file, output_file);
+    if (flag_cnt == 0) {
+        res = direct_frontend  (&input_file, output_file);
     } else {
-        res = reverse_frontend (argv, &input_file, output_file);
+        res = reverse_frontend (&input_file, output_file);
     }
 
     fclose (output_file);
@@ -54,9 +59,8 @@ int main (int argc, const char* argv[])
 
 // -------------------------------------------------------------------------------------------------
 
-static int direct_frontend (const char **argv, const file_t *input_file, FILE *output_file)
+static int direct_frontend (const file_t *input_file, FILE *output_file)
 {
-    assert (argv        != nullptr && "invalid pointer");
     assert (input_file  != nullptr && "invalid pointer");
     assert (output_file != nullptr && "invalid pointer");
 
@@ -64,11 +68,12 @@ static int direct_frontend (const char **argv, const file_t *input_file, FILE *o
     program::ctor (&prog);
 
     if (program::tokenize (input_file->content, input_file->size, &prog) != 0) {
-        ERR_CASE (false, "Failed to tokenise input file");
+        ERR_CASE (true, "Failed to tokenise input file");
     }
 
     if (program::parse_into_ast (&prog) == ERROR) {
-        ERR_CASE (false, "Failed to parse input file into AST");
+        program::dtor (&prog);
+        ERR_CASE (true, "Failed to parse input file into AST");
     }
 
     program::save_ast (&prog, output_file);
@@ -79,9 +84,8 @@ static int direct_frontend (const char **argv, const file_t *input_file, FILE *o
     return 0;
 }
 
-static int reverse_frontend (const char **argv, const file_t *input_file, FILE *output_file)
+static int reverse_frontend (const file_t *input_file, FILE *output_file)
 {
-    assert (argv        != nullptr && "invalid pointer");
     assert (input_file  != nullptr && "invalid pointer");
     assert (output_file != nullptr && "invalid pointer");
     
