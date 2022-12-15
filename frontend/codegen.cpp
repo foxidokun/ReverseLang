@@ -217,10 +217,10 @@ static bool codegen_func_args (tree::node_t *node, program_t *prog, FILE *stream
 
     if (node->type != tree::node_type_t::FICTIOUS)
     {
-        subtree_codegen (node, prog, stream);
         if (not_first_arg) {
             EMIT (",");
         } 
+        subtree_codegen (node, prog, stream);
         return true;
     }
 
