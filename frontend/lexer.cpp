@@ -90,7 +90,7 @@ int program::tokenize (const char *const str_beg, size_t size, program_t *progra
 
     SKIP_SPACES ();
 
-    while (str - str_beg < size)
+    while ((size_t) (str - str_beg) < size)
     {
         if (isalpha (*str) || (*str == '=' || *str == '(' || *str == ')' || *str == '{' || *str == '}' || *str == ';' || *str == ',' || *str == '_' || *str == '~' || *str == '<' || *str == '>' || *str == '!' || *str == '&' || *str == '|' || *str == '[' || *str == ']'))
         {
@@ -169,6 +169,7 @@ void program::print_token_func (token_t *token, FILE *stream)
                 case token::keyword::CLOSE_BLOCK:       EMIT ("KW: }");
                 case token::keyword::FUNC_OPEN_BLOCK:   EMIT ("KW: [");
                 case token::keyword::FUNC_CLOSE_BLOCK:  EMIT ("KW: ]");
+                case token::keyword::SQRT:              EMIT ("KW: SQRT");
                 case token::keyword::SEP:               EMIT ("KW: SEP");
                 case token::keyword::ELSE:              EMIT ("KW: ELSE");
                 case token::keyword::WHILE:             EMIT ("KW: WHILE");
@@ -211,13 +212,13 @@ void program::save_names (program_t *program, FILE *stream)
     assert (program != nullptr && "invalid pointer");
     assert (stream  != nullptr && "invalid pointer");
 
-    fprintf (stream, "%d\n", program->var_names.size); 
+    fprintf (stream, "%u\n", program->var_names.size); 
 
     for (size_t i = 0; i < program->var_names.size; ++i) {
         fprintf (stream, "%s\n", program->var_names.names[i]);
     }
 
-    fprintf (stream, "%d\n", program->func_names.size); 
+    fprintf (stream, "%u\n", program->func_names.size); 
 
     for (size_t i = 0; i < program->func_names.size; ++i) {
         fprintf (stream, "%s\n", program->func_names.names[i]);
