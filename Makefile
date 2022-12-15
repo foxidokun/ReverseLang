@@ -1,4 +1,4 @@
-all: front back cpu dirs
+all: dirs front back cpu
 
 dirs: dump bin 
 
