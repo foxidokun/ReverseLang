@@ -26,7 +26,7 @@ static int reverse_frontend (const char **argv, const file_t *input_file, FILE *
 
 int main (int argc, const char* argv[])
 {
-    if ((argc != 3 && argc != 4) || strcmp (argv[1], "-h"))
+    if ((argc != 3 && argc != 4) || strcmp (argv[1], "-h") == 0)
     {
         fprintf (stderr, "Usage: ./front (-r) <input file> <output file>\n");
         fprintf (stderr, "      -r for reverse codegen from ast dump\n");
@@ -37,7 +37,7 @@ int main (int argc, const char* argv[])
     ERR_CASE (input_file.content == nullptr, "Failed to open file %s", argv[1]);
 
     FILE *output_file = fopen (argv[2], "w");
-    ERR_CASE (output_file != nullptr, "Failed to open file %s", argv[2]);
+    ERR_CASE (output_file == nullptr, "Failed to open file %s", argv[2]);
 
     int res = 15; // random poison value
 
