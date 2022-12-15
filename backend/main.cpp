@@ -1,9 +1,10 @@
-#include <assert.h>
 #include <cstdio>
 #include <string.h>
 #include "compiler.h"
-#include "../lib/common.h"
 #include "../lib/file.h"
+#include "../lib/common.h"
+
+// -------------------------------------------------------------------------------------------------
 
 #define ERR_CASE(cond, fmt, ...)                    \
 {                                                   \
@@ -13,10 +14,11 @@
     }                                               \
 }
 
+// -------------------------------------------------------------------------------------------------
+
 int main (int argc, const char *argv[])
 {
-    ERR_CASE (argc != 3 || (argc == 2 && strcmp (argv[1], "-h")),
-                                                "Usage: ./back <input ast file> <output asm file>");
+    ERR_CASE (argc != 3 || strcmp (argv[1], "-h"), "Usage: ./back <input ast file> <output asm file>");
 
     const file_t src = open_ro_file (argv[1]);
     ERR_CASE (src.content == nullptr, "Failed to open file %s", argv[1]);
@@ -33,5 +35,6 @@ int main (int argc, const char *argv[])
 
     ERR_CASE (compiler::compile (ast, output_file), "Failed to compile, see logs");
 
+    fclose (output_file);
     tree::del_node (ast);
 }

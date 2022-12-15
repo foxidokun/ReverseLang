@@ -89,7 +89,7 @@ bool compiler::compile (tree::node_t *node, FILE *stream)
     TRY (subtree_compile (&compiler, node, stream));
 
     EMIT ("halt");
-    
+
     dtor (&compiler);
     return true;
 }
@@ -471,6 +471,7 @@ static int compile_func_call_args (compiler_t *compiler, tree::node_t *node, FIL
 
     return args_counter;
 }
+
 // -------------------------------------------------------------------------------------------------
 
 static int ctor_vars (vars_t *vars)
