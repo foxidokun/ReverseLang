@@ -293,7 +293,7 @@ static bool compile_if (compiler_t *compiler, tree::node_t *node, FILE *stream)
     TRY (subtree_compile (compiler, node->left, stream));
     EMIT ("push 0");
 
-    if (node->right->type == tree::node_type_t::ELSE)
+    if (node->right->left != nullptr)
     {
         EMIT ("je else_%d", label_index);
         TRY (subtree_compile (compiler, node->right->left,  stream));
@@ -305,7 +305,7 @@ static bool compile_if (compiler_t *compiler, tree::node_t *node, FILE *stream)
     else
     {
         EMIT ("je if_end_%d", label_index);
-        TRY (subtree_compile (compiler, node->right, stream));
+        TRY (subtree_compile (compiler, node->right->right, stream));
         EMIT ("if_end_%d:",   label_index);
     }
 

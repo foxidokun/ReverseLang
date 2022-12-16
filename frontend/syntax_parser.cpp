@@ -300,6 +300,8 @@ static tree::node_t *GetIfBlock (token_t **input_token, program_t *prog)
     TRY (node = GetSubProgram (&token, prog));
     CHECK_KEYWORD (CLOSE_BLOCK);
 
+    node = tree::new_node (node_type_t::ELSE, 0, nullptr, node);
+
     if (isKEYWORD (ELSE))
     {
         token++;
@@ -308,7 +310,8 @@ static tree::node_t *GetIfBlock (token_t **input_token, program_t *prog)
         TRY (tmp_node = GetSubProgram (&token, prog));
         CHECK_KEYWORD (CLOSE_BLOCK);
 
-        node = tree::new_node (node_type_t::ELSE, 0, node, tmp_node);
+        node->left  = node->right;
+        node->right = tmp_node;
     }
 
     node = tree::new_node (node_type_t::IF, 0, cond, node);

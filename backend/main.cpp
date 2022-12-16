@@ -36,6 +36,8 @@ int main (int argc, const char *argv[])
     FILE *output_file = fopen (argv[2], "w");
     ERR_CASE (output_file == nullptr, "Failed to open file %s", argv[2]);
 
+    tree::graph_dump (ast, "");
+
     ERR_CASE (!compiler::compile (ast, output_file), "Failed to compile, see logs");
 
     fclose (output_file);
