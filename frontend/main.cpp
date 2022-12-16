@@ -78,6 +78,8 @@ static int direct_frontend (const file_t *input_file, FILE *output_file)
 
     program::save_ast (&prog, output_file);
 
+    tree::graph_dump (prog.ast, "");
+
     tree::del_node (prog.ast);
     program::dtor (&prog);
 

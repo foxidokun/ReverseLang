@@ -216,6 +216,11 @@ static bool compile_op (compiler_t *compiler, tree::node_t *node, FILE *stream)
             EMIT ("sqrt");
             break;
 
+        case tree::op_t::SIN:
+            TRY (subtree_compile (compiler, node->right, stream));
+            EMIT ("sin");
+            break;
+
         case tree::op_t::OUTPUT:
             TRY (subtree_compile (compiler, node->right, stream));
             EMIT ("pop  rax");

@@ -41,7 +41,8 @@ namespace tree
         NOT,    // !
         AND,    // &&
         OR,     // ||
-        ASSIG   // :=
+        ASSIG,   // :=
+        SIN = 100
     };
 
     struct node_t

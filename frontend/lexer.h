@@ -35,9 +35,10 @@ namespace token {
         BREAK,            // ;
         PROG_BEG,         // ~nya~
         PROG_END,         // ~nya~
-        PRINT,            // __builtin_print__
-        INPUT,            // __builtin_input__
-        SQRT,             // __builtin_sqrt__
+        PRINT,            // __print__
+        INPUT,            // __input__
+        SQRT,             // __sqrt__
+        SIN,              // __sin__
         L_BRACKET,        // (
         R_BRACKET,        // )
         OPEN_BLOCK,       // {

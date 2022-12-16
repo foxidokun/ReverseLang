@@ -7,6 +7,7 @@
 #include <ctype.h>
 
 #include "common.h"
+#include "colors.h"
 #include "file.h"
 #include "log.h"
 
@@ -36,7 +37,7 @@ static tree::node_t *load_subtree (const char **str);
 static bool node_codegen (tree::node_t *node, void *stream_void, bool cont);
 
 static const char *get_op_name (tree::op_t op);
-static void format_node (char *buf, const tree::node_t *node);
+static void format_node (const tree::node_t *node, char *buf, const char **color);
 
 
 // -------------------------------------------------------------------------------------------------
@@ -453,10 +454,11 @@ static bool node_codegen (tree::node_t *node, void *stream_void, bool)
     assert (stream_void != nullptr && "invalid pointer");
 
     FILE *stream = (FILE *) stream_void;
-    char buf[MAX_NODE_LEN] = "";
-    format_node (buf, node);
+    char name_buf [MAX_NODE_LEN] = "";
+    const char *color_buf = "";
+    format_node (node, name_buf, &color_buf);
 
-    fprintf (stream, "node_%p [label = \"%s\"]\n", node, buf);
+    fprintf (stream, "node_%p [label = \"%s\"]\n", node, name_buf);
 
     if (node->left != nullptr)
     {
@@ -473,36 +475,39 @@ static bool node_codegen (tree::node_t *node, void *stream_void, bool)
 
 // -------------------------------------------------------------------------------------------------
 
-#define _PRINT(fmt, ...)                \
+#define _PRINT(color_const, fmt, ...)   \
 {                                       \
+    *color = color_const;               \
     sprintf (buf, fmt, ##__VA_ARGS__);  \
     return;                             \
 }
 
-static void format_node (char *buf, const tree::node_t *node) 
+static void format_node (const tree::node_t *node, char *buf, const char **color) 
 {
     assert (buf  != nullptr && "invalid pointer");
     assert (node != nullptr && "invalid pointer");
 
     switch (node->type)
     {
-        case tree::node_type_t::NOT_SET:    _PRINT ("NOT SET");
-        case tree::node_type_t::FICTIOUS:   _PRINT ("FICTIOUS");
-        case tree::node_type_t::VAL:        _PRINT ("VAL: %d",  node->data);
-        case tree::node_type_t::VAR:        _PRINT ("VAR: #%d", node->data);
-        case tree::node_type_t::IF:         _PRINT ("IF");
-        case tree::node_type_t::ELSE:       _PRINT ("ELSE");
-        case tree::node_type_t::WHILE:      _PRINT ("WHILE");
-        case tree::node_type_t::OP:         _PRINT ("OP: %s", get_op_name ((tree::op_t) node->data));
-        case tree::node_type_t::VAR_DEF:    _PRINT ("VAR DEF: #%d",   node->data);
-        case tree::node_type_t::FUNC_DEF:   _PRINT ("FUNC_DEF: #%d",  node->data);
-        case tree::node_type_t::FUNC_CALL:  _PRINT ("FUNC_CALL: #%d", node->data);
-        case tree::node_type_t::RETURN:     _PRINT ("RETURN");
+        case tree::node_type_t::NOT_SET:    _PRINT (NOT_SET_COLOR,   "NOT SET");
+        case tree::node_type_t::FICTIOUS:   _PRINT (FICTIOUS_COLOR,  "FICTIOUS");
+        case tree::node_type_t::VAL:        _PRINT (VAL_COLOR,       "VAL: %d",  node->data);
+        case tree::node_type_t::VAR:        _PRINT (VAR_COLOR,       "VAR: #%d", node->data);
+        case tree::node_type_t::IF:         _PRINT (IF_COLOR,        "IF");
+        case tree::node_type_t::ELSE:       _PRINT (ELSE_COLOR,      "ELSE");
+        case tree::node_type_t::WHILE:      _PRINT (WHILE_COLOR,     "WHILE");
+        case tree::node_type_t::OP:         _PRINT (OP_COLOR,        "OP: %s", get_op_name ((tree::op_t) node->data));
+        case tree::node_type_t::VAR_DEF:    _PRINT (VAR_COLOR,       "VAR DEF: #%d",   node->data);
+        case tree::node_type_t::FUNC_DEF:   _PRINT (FUNC_DEF_COLOR,  "FUNC_DEF: #%d",  node->data);
+        case tree::node_type_t::FUNC_CALL:  _PRINT (FUNC_CALL_COLOR, "FUNC_CALL: #%d", node->data);
+        case tree::node_type_t::RETURN:     _PRINT (RETURN_COLOR,    "RETURN");
         
         default:
             assert (0 && "Unexpected node type");
     }
 }
+
+#undef _PRINT
 
 // -------------------------------------------------------------------------------------------------
 
@@ -518,6 +523,7 @@ static const char *get_op_name (tree::op_t op)
         _OP(DIV,    "/")
         _OP(MUL,    "*")
         _OP(SQRT,   "sqrt")
+        _OP(SIN,    "sin")
         _OP(INPUT,  "INP")
         _OP(OUTPUT, "OUT")
         _OP(EQ,     "==")

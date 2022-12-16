@@ -14,14 +14,15 @@
 // IfBlock        ::= L_BRACKET Expression R_BRACKET IF OPEN_BLOCK Body CLOSE_BLOCK (ELSE OPEN_BLOCK Body CLOSE_BLOCK) 
 // Body           ::= (Line)+
 // Line           ::= BREAK Expression RETURN | BREAK Expression (= NAME (LET))
-// Expression     ::= PRINT Expression | SQRT Expression | OrOperand (|| OrOperand)+
+// Expression     ::= OrOperand (|| OrOperand)+
 // OrOperand      ::= AndOperand (&& AndOperand)+
 // AndOperand     ::= CompOperand (<=> CompOperand)
 // CompOperand    ::= AddOperand  ([+-] AddOperand)* 
 // AddOperand     ::= MulOperand  ([/ *] MulOperand )*
 // MulOperand     ::= GeneralOperand (NOT)
 // GeneralOperand ::= Quant | L_BRACKET Expression R_BRACKET
-// Quant          ::= VAR | VAL | INPUT | L_BRACKET (Expression (SEM Expression)) R_BRACKET NAME
+// Quant          ::= VAR | VAL | INPUT | BuiltInFunc | L_BRACKET (Expression (SEM Expression)) R_BRACKET NAME
+// BuiltInFunc    ::= L_BRACKET Expression R_BRACKET (PRINT|SQRT|SIN)
 
 using tree::node_type_t;
 using tree::op_t;
@@ -110,6 +111,7 @@ static tree::node_t *GetAddOperand     (token_t **input_token, program_t *prog);
 static tree::node_t *GetMulOperand     (token_t **input_token, program_t *prog);
 static tree::node_t *GetGeneralOperand (token_t **input_token, program_t *prog);
 static tree::node_t *GetQuant          (token_t **input_token, program_t *prog);
+static tree::node_t *GetBuiltInFunc    (token_t **input_token, program_t *prog);
 
 // -------------------------------------------------------------------------------------------------
 
@@ -392,36 +394,17 @@ static tree::node_t *GetExpression (token_t **input_token, program_t *prog)
 {
     PREPARE ();
 
-    if (isKEYWORD (PRINT))
+    tree::node_t *node_rhs = nullptr;
+
+    TRY (node = GetOrOperand (&token, prog));
+
+    while (isKEYWORD (OR))
     {
         token++;
 
-        TRY (node = GetExpression (&token, prog));
+        TRY (node_rhs = GetOrOperand (&token, prog));
 
-        node = tree::new_node (node_type_t::OP, op_t::OUTPUT, nullptr, node);
-    }
-    else if (isKEYWORD (SQRT))
-    {
-        token++;
-
-        TRY (node = GetExpression (&token, prog));
-
-        node = tree::new_node (node_type_t::OP, op_t::SQRT, nullptr, node);
-    }
-    else
-    {
-        tree::node_t *node_rhs = nullptr;
-
-        TRY (node = GetOrOperand (&token, prog));
-
-        while (isKEYWORD (OR))
-        {
-            token++;
-
-            TRY (node_rhs = GetOrOperand (&token, prog));
-
-            node = tree::new_node (node_type_t::OP, op_t::OR, node_rhs, node);
-        }
+        node = tree::new_node (node_type_t::OP, op_t::OR, node_rhs, node);
     }
 
     SUCCESS();
@@ -617,6 +600,11 @@ static tree::node_t *GetQuant (token_t **input_token, program_t *prog)
     }
     else if (isKEYWORD (L_BRACKET))
     {
+        if ((node = GetBuiltInFunc (&token, prog)) != nullptr)
+        {
+            SUCCESS ();
+        }
+
         token++;
         tree::node_t *node_param = nullptr;
 
@@ -651,6 +639,43 @@ static tree::node_t *GetQuant (token_t **input_token, program_t *prog)
     }
 
     SUCCESS ();    
+}
+
+#undef EXTRA_CLEAR_ON_ERROR
+
+// -------------------------------------------------------------------------------------------------
+
+#define EXTRA_CLEAR_ON_ERROR() {;}
+
+static tree::node_t *GetBuiltInFunc (token_t **input_token, program_t *prog)
+{
+    PREPARE();
+
+    CHECK_KEYWORD(L_BRACKET);
+    TRY (node = GetExpression (&token, prog));
+    CHECK_KEYWORD(R_BRACKET);
+
+    EXPECT (token->type == token::type_t::KEYWORD);
+
+    if (token->keyword == token::keyword::PRINT)
+    {
+        token++;
+        node = tree::new_node (node_type_t::OP, op_t::OUTPUT, nullptr, node);
+    }
+    else if (token->keyword == token::keyword::SQRT)
+    {
+        token++;
+        node = tree::new_node (node_type_t::OP, op_t::SQRT, nullptr, node);
+    }
+    else if (token->keyword == token::keyword::SIN)
+    {
+        token++;
+        node = tree::new_node (node_type_t::OP, op_t::SIN, nullptr, node);
+    } else {
+        EXPECT (0);
+    }
+
+    SUCCESS();    
 }
 
 #undef EXTRA_CLEAR_ON_ERROR

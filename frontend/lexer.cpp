@@ -158,6 +158,7 @@ void program::print_token_func (token_t *token, FILE *stream)
                 case token::keyword::PROG_END:          EMIT ("KW: ~nya~");
                 case token::keyword::PRINT:             EMIT ("KW: //print//");
                 case token::keyword::INPUT:             EMIT ("KW: //input//");
+                case token::keyword::SIN:               EMIT ("KW: //sin//");
                 case token::keyword::L_BRACKET:         EMIT ("KW: (");
                 case token::keyword::R_BRACKET:         EMIT ("KW: )");
                 case token::keyword::IF:                EMIT ("KW: if");
@@ -329,6 +330,7 @@ static bool tokenize_keyword (const char **input_str, program_t *program)
     TRY_KEYWORD (PRINT,                 "__builtin_print__")
     TRY_KEYWORD (INPUT,                 "__builtin_input__")
     TRY_KEYWORD (SQRT,                  "__builtin_sqrt__")
+    TRY_KEYWORD (SIN,                   "__builtin_sin__")
     TRY_KEYWORD (L_BRACKET,             "(")
     TRY_KEYWORD (R_BRACKET,             ")")
     TRY_KEYWORD (OPEN_BLOCK,            "{")
