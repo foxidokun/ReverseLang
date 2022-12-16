@@ -325,10 +325,14 @@ static bool compile_while (compiler_t *compiler, tree::node_t *node, FILE *strea
     int label_index = get_label_index (compiler);
 
     EMIT ("while_beg_%d:", label_index);
+    
     TRY (subtree_compile (compiler, node->left, stream));
+    
     EMIT ("push 0");
     EMIT ("je while_end_%d",  label_index);
+    
     TRY (subtree_compile (compiler, node->right, stream));
+    
     EMIT ("jmp while_beg_%d", label_index);
     EMIT ("while_end_%d:",    label_index);
     

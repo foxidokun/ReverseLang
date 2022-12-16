@@ -18,7 +18,8 @@
         }
                      ]
 
-     ;(5) fib = x let
+
+;( 2 + !0 + (1 && 1) + 1) fib = x let
 ; (x) print
 ; (CALL_CNT) print
                  ~nya~

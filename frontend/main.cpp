@@ -95,7 +95,6 @@ static int reverse_frontend (const file_t *input_file, FILE *output_file)
     ERR_CASE (program::load_ast (&prog, input_file->content) == ERROR, 
                                                                     "Failed to load AST from dump");
 
-    tree::graph_dump (prog.ast, "");
 
     program::codegen (&prog, output_file);
 
