@@ -1,25 +1,26 @@
-                 ~sya~
+~sya~
+
 (x) print fn
 [
-; __builtin_print__ x return
+; (x) __builtin_print__ return
 ]
 
 
 ;0 = CALL_CNT let
 
-           (a) fib fn
-                     [
+(a) fib fn
+[
         ; 1 + CALL_CNT = CALL_CNT
         (2 > a) if
         {
-        ; (2 - a) fib + (1 - a) fib return
+                ; (2 - a) fib + (1 - a) fib return
         } else {
                 ;1 return
         }
-                     ]
+]
 
 
-;( 2 + !0 + (1 && 1) + 1) fib = x let
+;( 2 + 0! + (1 && 1) + 1) fib = x let
 ; (x) print
 ; (CALL_CNT) print
-                 ~nya~
+~nya~

@@ -1,0 +1,25 @@
+~sya~
+
+(x) print fn
+[
+    ; (x) __builtin_print__ return
+]
+
+(x) sin fn
+[
+    ; (x) __builtin_sin__ return
+]
+
+(x) sqrt fn
+[
+    ; (x) __builtin_sqrt__ return
+]
+
+(x) input fn
+[
+    ; __builtin_input__ return
+]
+
+; ((2 / 1) sin) print
+
+~nya~

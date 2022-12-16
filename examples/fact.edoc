@@ -1,0 +1,27 @@
+~sya~
+
+(x) print fn
+[
+; __builtin_print__ x return
+]
+
+() input fn
+[
+    ;__builtin_input__ return
+]
+
+
+(x) fact fn
+[
+    (1 < x) if
+    {
+        ;1 return
+    }
+
+    ; x * ( (1 - x) fact ) return
+]
+
+; () input = a let
+; ((0! + 4) fact) print
+
+~nya~

@@ -2,17 +2,17 @@
 
 (x) print fn
 [
-    ;__builtin_print__ x return
+    ; (x) __builtin_print__ return
 ]
 
 (x) sqrt fn
 [
-    ;__builtin_sqrt__ x return
+    ; (x) __builtin_sqrt__ return
 ]
 
-() input fn
+(x) input fn
 [
-    ;__builtin_input__ return
+    ; __builtin_input__ return
 ]
 
 
@@ -102,9 +102,9 @@
 
 # ax^2 + bx + c = 0
 
-; () input = a let
-; () input = b let
-; () input = c let
+; (0) input = a let
+; (0) input = b let
+; (0) input = c let
 
 ; (c, b, a) square_solver
 
