@@ -29,7 +29,7 @@ struct dfs_params
 const int REASON_LEN   = 50;
 const int MAX_NODE_LEN = 32;
 
-const char PREFIX[] = "digraph {\nnode [shape=record,style=\"filled\"]\nsplines=spline;\n";
+const char PREFIX[] = "digraph G {\nnode [shape=record,style=\"filled\"]\nsplines=spline;\n";
 static const size_t DUMP_FILE_PATH_LEN = 20;
 static const char DUMP_FILE_PATH_FORMAT[] = "dump/%d.grv";
 
@@ -44,7 +44,7 @@ static bool dfs_recursion (tree::node_t *node, tree::walk_f pre_exec,  void *pre
 static tree::node_t *load_subtree (const char **str);
 
 static bool node_codegen (tree::node_t *node, void *stream_void, bool cont);
-
+static bool close_func_def (tree::node_t *node, void *void_params, bool);
 static const char *get_op_name (tree::op_t op);
 static void format_node (const tree::node_t *node, char *buf, char **var_names, char **func_names, const char **color);
 
@@ -234,7 +234,7 @@ int tree::graph_dump (node_t *node, const char *reason_fmt, char **var_names, ch
 
     dfs_exec (node, node_codegen, &params,
                     nullptr,      nullptr,
-                    nullptr,      nullptr);
+                    close_func_def,  &params);
 
     fprintf (dump_file, "}\n");
 
@@ -500,12 +500,19 @@ static bool node_codegen (tree::node_t *node, void *void_params, bool)
 
     dfs_params *params = (dfs_params *) void_params;
 
+    static int subgraph_cnt = 0;
+
     FILE *stream = params->stream;
     char name_buf [MAX_NODE_LEN] = "";
     const char *color_buf = "";
     format_node (node, name_buf, params->var_names, params->func_names, &color_buf);
 
     fprintf (stream, "node_%p [label = \"%s\", fillcolor = \"%s\"]\n", node, name_buf, color_buf);
+
+    if (node->type == tree::node_type_t::FUNC_DEF)
+    {
+        fprintf (stream, "subgraph subgraph_%d {\ncolor=blue;\n", subgraph_cnt++);
+    }
 
     if (node->left != nullptr)
     {
@@ -515,6 +522,24 @@ static bool node_codegen (tree::node_t *node, void *void_params, bool)
     if (node->right != nullptr)
     {
         fprintf (stream, "node_%p -> node_%p\n", node, node->right);
+    }
+
+    return true;
+}
+
+// -------------------------------------------------------------------------------------------------
+
+static bool close_func_def (tree::node_t *node, void *void_params, bool)
+{
+    assert (node   != nullptr && "invalid pointer");
+    assert (void_params != nullptr && "invalid pointer");
+
+    dfs_params *params = (dfs_params *) void_params;
+    FILE *stream = params->stream;
+
+    if (node->type == tree::node_type_t::FUNC_DEF)
+    {
+        fprintf (stream, "}\n");
     }
 
     return true;
