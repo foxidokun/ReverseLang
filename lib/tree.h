@@ -86,6 +86,9 @@ namespace tree
 
     tree::node_t *copy_subtree (tree::node_t *node);
 
+    int graph_dump (tree_t *tree, const char *reason_fmt, char **var_names, char **func_names, ...);
+    int graph_dump (node_t *node, const char *reason_fmt, char **var_names, char **func_names, ...);
+    int graph_dump (node_t *node, const char *reason_fmt, char **var_names, char **func_names, va_list args);
     int graph_dump (tree_t *tree, const char *reason_fmt, ...);
     int graph_dump (node_t *node, const char *reason_fmt, ...);
     int graph_dump (node_t *node, const char *reason_fmt, va_list args);

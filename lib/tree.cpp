@@ -14,6 +14,15 @@
 #include "tree.h"
 
 // -------------------------------------------------------------------------------------------------
+
+struct dfs_params
+{
+    FILE *stream;
+    char ** var_names;
+    char **func_names;
+};
+
+// -------------------------------------------------------------------------------------------------
 // CONST SECTION
 // -------------------------------------------------------------------------------------------------
 
@@ -37,7 +46,7 @@ static tree::node_t *load_subtree (const char **str);
 static bool node_codegen (tree::node_t *node, void *stream_void, bool cont);
 
 static const char *get_op_name (tree::op_t op);
-static void format_node (const tree::node_t *node, char *buf, const char **color);
+static void format_node (const tree::node_t *node, char *buf, char **var_names, char **func_names, const char **color);
 
 
 // -------------------------------------------------------------------------------------------------
@@ -138,6 +147,20 @@ tree::node_t *tree::copy_subtree (tree::node_t *node)
 
 // -------------------------------------------------------------------------------------------------
 
+int tree::graph_dump (tree_t *tree, const char *reason_fmt, char **var_names, char **func_names, ...)
+{
+    assert (tree       != nullptr && "pointer can't be nullptr");
+    assert (reason_fmt != nullptr && "pointer can't be nullptr");
+
+    va_list args;
+    va_start (args, func_names);
+
+    int res = graph_dump (tree->head_node, reason_fmt, var_names, func_names, args);
+
+    va_end (args);
+    return res;
+}
+
 int tree::graph_dump (tree_t *tree, const char *reason_fmt, ...)
 {
     assert (tree       != nullptr && "pointer can't be nullptr");
@@ -147,6 +170,20 @@ int tree::graph_dump (tree_t *tree, const char *reason_fmt, ...)
     va_start (args, reason_fmt);
 
     int res = graph_dump (tree->head_node, reason_fmt, args);
+
+    va_end (args);
+    return res;
+}
+
+int tree::graph_dump (node_t *node, const char *reason_fmt, char **var_names, char **func_names, ...)
+{
+    assert (node       != nullptr && "pointer can't be nullptr");
+    assert (reason_fmt != nullptr && "pointer can't be nullptr");
+
+    va_list args;
+    va_start (args, func_names);
+
+    int res = graph_dump (node, reason_fmt, var_names, func_names, args);
 
     va_end (args);
     return res;
@@ -169,8 +206,14 @@ int tree::graph_dump (node_t *node, const char *reason_fmt, ...)
 
 int tree::graph_dump (node_t *node, const char *reason_fmt, va_list args)
 {
+    return graph_dump (node, reason_fmt, nullptr, nullptr, args);
+}
+
+int tree::graph_dump (node_t *node, const char *reason_fmt, char **var_names, char **func_names, va_list args)
+{
     assert (node       != nullptr && "pointer can't be nullptr");
     assert (reason_fmt != nullptr && "pointer can't be nullptr");
+
 
     static int counter = 0;
     counter++;
@@ -186,10 +229,12 @@ int tree::graph_dump (node_t *node, const char *reason_fmt, va_list args)
     }
 
     fprintf (dump_file, PREFIX);
+    
+    dfs_params params = {dump_file, var_names, func_names};
 
-    dfs_exec (node, node_codegen, dump_file,
-                    nullptr, nullptr,
-                    nullptr, nullptr);
+    dfs_exec (node, node_codegen, &params,
+                    nullptr,      nullptr,
+                    nullptr,      nullptr);
 
     fprintf (dump_file, "}\n");
 
@@ -448,15 +493,17 @@ static tree::node_t *load_subtree (const char **str)
 #undef TRY
 // -------------------------------------------------------------------------------------------------
 
-static bool node_codegen (tree::node_t *node, void *stream_void, bool)
+static bool node_codegen (tree::node_t *node, void *void_params, bool)
 {
-    assert (node        != nullptr && "invalid pointer");
-    assert (stream_void != nullptr && "invalid pointer");
+    assert (node   != nullptr && "invalid pointer");
+    assert (void_params != nullptr && "invalid pointer");
 
-    FILE *stream = (FILE *) stream_void;
+    dfs_params *params = (dfs_params *) void_params;
+
+    FILE *stream = params->stream;
     char name_buf [MAX_NODE_LEN] = "";
     const char *color_buf = "";
-    format_node (node, name_buf, &color_buf);
+    format_node (node, name_buf, params->var_names, params->func_names, &color_buf);
 
     fprintf (stream, "node_%p [label = \"%s\", fillcolor = \"%s\"]\n", node, name_buf, color_buf);
 
@@ -482,7 +529,7 @@ static bool node_codegen (tree::node_t *node, void *stream_void, bool)
     return;                             \
 }
 
-static void format_node (const tree::node_t *node, char *buf, const char **color) 
+static void format_node (const tree::node_t *node, char *buf, char **var_names, char **func_names, const char **color) 
 {
     assert (buf  != nullptr && "invalid pointer");
     assert (node != nullptr && "invalid pointer");
@@ -491,15 +538,43 @@ static void format_node (const tree::node_t *node, char *buf, const char **color
     {
         case tree::node_type_t::NOT_SET:    _PRINT (NOT_SET_COLOR,   "NOT SET");
         case tree::node_type_t::FICTIOUS:   _PRINT (FICTIOUS_COLOR,  "FICTIOUS");
-        case tree::node_type_t::VAL:        _PRINT (VAL_COLOR,       "VAL: %d",  node->data);
-        case tree::node_type_t::VAR:        _PRINT (VAR_COLOR,       "VAR: #%d", node->data);
+        case tree::node_type_t::VAR:
+            if (var_names == nullptr)
+            {
+                _PRINT (VAR_COLOR,       "VAR: #%d",  node->data);
+            } else 
+            {
+                _PRINT (VAR_COLOR,       "VAR: %s",  var_names[node->data]);
+            }
+        case tree::node_type_t::VAL:        _PRINT (VAL_COLOR,       "VAL: %d", node->data);
         case tree::node_type_t::IF:         _PRINT (IF_COLOR,        "IF");
         case tree::node_type_t::ELSE:       _PRINT (ELSE_COLOR,      "ELSE");
         case tree::node_type_t::WHILE:      _PRINT (WHILE_COLOR,     "WHILE");
         case tree::node_type_t::OP:         _PRINT (OP_COLOR,        "OP: %s", get_op_name ((tree::op_t) node->data));
-        case tree::node_type_t::VAR_DEF:    _PRINT (VAR_COLOR,       "VAR DEF: #%d",   node->data);
-        case tree::node_type_t::FUNC_DEF:   _PRINT (FUNC_DEF_COLOR,  "FUNC_DEF: #%d",  node->data);
-        case tree::node_type_t::FUNC_CALL:  _PRINT (FUNC_CALL_COLOR, "FUNC_CALL: #%d", node->data);
+        case tree::node_type_t::VAR_DEF:
+            if (var_names == nullptr)
+            {
+                _PRINT (VAR_DEF_COLOR,       "VAR DEF: #%d",  node->data);
+            } else 
+            {
+                _PRINT (VAR_DEF_COLOR,       "VAR DEF: %s",  var_names[node->data]);
+            }
+        case tree::node_type_t::FUNC_DEF:
+            if (func_names == nullptr)
+            {
+                _PRINT (FUNC_DEF_COLOR,       "FUNC DEF: #%d",  node->data);
+            } else 
+            {
+                _PRINT (FUNC_DEF_COLOR,       "FUNC DEF: %s",  func_names[node->data]);
+            }
+        case tree::node_type_t::FUNC_CALL:
+            if (func_names == nullptr)
+            {
+                _PRINT (FUNC_CALL_COLOR,       "FUNC CALL: #%d",  node->data);
+            } else 
+            {
+                _PRINT (FUNC_CALL_COLOR,       "FUNC CALL: %s",  func_names[node->data]);
+            }
         case tree::node_type_t::RETURN:     _PRINT (RETURN_COLOR,    "RETURN");
         
         default:
