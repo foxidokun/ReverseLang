@@ -5,9 +5,9 @@
     ; (x) __builtin_print__ return
 ]
 
-(x) sin fn
+(x) cos fn
 [
-    ; (x) __builtin_sin__ return
+    ; (x) __builtin_cos__ return
 ]
 
 (x) sqrt fn
@@ -20,6 +20,6 @@
     ; __builtin_input__ return
 ]
 
-; ((2 / 1) sin) print
+; ((2 / 1) cos) print
 
 ~nya~

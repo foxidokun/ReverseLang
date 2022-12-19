@@ -65,6 +65,7 @@ static bool subtree_optimize_const (tree::node_t *node)
         case tree::op_t::ASSIG:
         case tree::op_t::SQRT:
         case tree::op_t::SIN:
+        case tree::op_t::COS:
         case tree::op_t::DIV:
             return subtree_optimize_const (node->right); 
         

@@ -42,7 +42,8 @@ namespace tree
         AND,    // &&
         OR,     // ||
         ASSIG,   // :=
-        SIN = 100
+        SIN = 100,
+        COS = 101,
     };
 
     struct node_t

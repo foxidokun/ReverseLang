@@ -39,6 +39,7 @@ namespace token {
         INPUT,            // __input__
         SQRT,             // __sqrt__
         SIN,              // __sin__
+        COS,              // __sin__
         L_BRACKET,        // (
         R_BRACKET,        // )
         OPEN_BLOCK,       // {

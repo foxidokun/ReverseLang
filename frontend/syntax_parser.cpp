@@ -671,6 +671,11 @@ static tree::node_t *GetBuiltInFunc (token_t **input_token, program_t *prog)
     {
         token++;
         node = tree::new_node (node_type_t::OP, op_t::SIN, nullptr, node);
+    }
+    else if (token->keyword == token::keyword::COS)
+    {
+        token++;
+        node = tree::new_node (node_type_t::OP, op_t::COS, nullptr, node);
     } else {
         EXPECT (0);
     }
