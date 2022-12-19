@@ -43,8 +43,8 @@ static bool dfs_recursion (tree::node_t *node, tree::walk_f pre_exec,  void *pre
 
 static tree::node_t *load_subtree (const char **str);
 
-static bool node_codegen (tree::node_t *node, void *stream_void, bool cont);
-static bool middle_graph (tree::node_t *node, void *void_params, bool);
+static bool node_codegen   (tree::node_t *node, void *void_params, bool);
+static bool middle_codegen (tree::node_t *node, void *void_params, bool);
 static bool close_subgraph (tree::node_t *node, void *void_params, bool);
 static const char *get_op_name (tree::op_t op);
 static void format_node (const tree::node_t *node, char *buf, char **var_names, char **func_names, const char **color);
@@ -234,7 +234,7 @@ int tree::graph_dump (node_t *node, const char *reason_fmt, char **var_names, ch
     dfs_params params = {dump_file, var_names, func_names};
 
     dfs_exec (node, node_codegen,    &params,
-                    middle_graph,    &params,
+                    middle_codegen,    &params,
                     close_subgraph,  &params);
 
     fprintf (dump_file, "}\n");
@@ -537,7 +537,7 @@ static bool node_codegen (tree::node_t *node, void *void_params, bool)
 
 // -------------------------------------------------------------------------------------------------
 
-static bool middle_graph (tree::node_t *node, void *void_params, bool)
+static bool middle_codegen (tree::node_t *node, void *void_params, bool)
 {
     assert (node   != nullptr && "invalid pointer");
     assert (void_params != nullptr && "invalid pointer");

@@ -1,17 +1,17 @@
 ~sya~
 (x) print fn
 [
-    ;__builtin_print__ x return
+    ;(x) __builtin_print__ return
 ]
 
 (x) sqrt fn
 [
-    ;__builtin_sqrt__ x return
+    ;(x) __builtin_sqrt__ return
 ]
 
 (x) input fn
 [
-    ;__builtint_input__  return
+    ; __builtin_input__ return
 ]
 
 (b,c) linear_solve fn
@@ -20,7 +20,7 @@
     {
     ((0) == (c)) if
         {
-        ;((1) - (0)) print
+        ;(228) print
             ;0 return
         } else {
         ;(0) print
