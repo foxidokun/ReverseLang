@@ -153,10 +153,12 @@ static void codegen_while(tree::node_t *node, program_t *prog, int step_cnt, FIL
 // -------------------------------------------------------------------------------------------------
 
 #define CODEGEN_KEYWORD(kw)                                    \
-    EMIT (kw " ");                                             \
     if (node->right) {                                         \
+        EMIT ("(");                                            \
         subtree_codegen (node->right, prog, step_cnt, stream, true); \
+        EMIT (")");                                            \
     }                                                          \
+    EMIT (" " kw);                                             \
     break;                                                     \
 
 #define CODEGEN_BIN_OP(op)                              \
@@ -185,7 +187,7 @@ static void codegen_op(tree::node_t *node, program_t *prog, int step_cnt, FILE *
         case tree::op_t::LT:    CODEGEN_BIN_OP("<");
         case tree::op_t::GE:    CODEGEN_BIN_OP(">=");
         case tree::op_t::LE:    CODEGEN_BIN_OP("<=");
-        case tree::op_t::NEQ:   CODEGEN_BIN_OP("!=");
+        case tree::op_t::NEQ:   CODEGEN_BIN_OP("=!");
         case tree::op_t::AND:   CODEGEN_BIN_OP("&&");
         case tree::op_t::OR:    CODEGEN_BIN_OP("||");
         
@@ -197,7 +199,7 @@ static void codegen_op(tree::node_t *node, program_t *prog, int step_cnt, FILE *
             break;
 
         case tree::op_t::SQRT:      CODEGEN_KEYWORD ("__builtin_sqrt__");
-        case tree::op_t::INPUT:     CODEGEN_KEYWORD ("__builtint_input__");
+        case tree::op_t::INPUT:     CODEGEN_KEYWORD ("__builtin_input__");
         case tree::op_t::OUTPUT:    CODEGEN_KEYWORD ("__builtin_print__");
         
         case tree::op_t::NOT:

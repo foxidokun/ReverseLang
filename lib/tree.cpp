@@ -458,7 +458,7 @@ static bool node_codegen (tree::node_t *node, void *stream_void, bool)
     const char *color_buf = "";
     format_node (node, name_buf, &color_buf);
 
-    fprintf (stream, "node_%p [label = \"%s\"]\n", node, name_buf);
+    fprintf (stream, "node_%p [label = \"%s\", fillcolor = \"%s\"]\n", node, name_buf, color_buf);
 
     if (node->left != nullptr)
     {

@@ -24,7 +24,7 @@
     {
         (0 == c) if
         {
-            ;(1 - 0) print
+            ;(228) print
             ;0 return
         } else {
             ;(0) print
