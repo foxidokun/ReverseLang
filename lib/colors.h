@@ -12,3 +12,6 @@ const char FUNC_DEF_COLOR[]   = "lightgreen";
 const char FUNC_CALL_COLOR[]  = "lightgreen";
 const char RETURN_COLOR[]     = "lightgreen";
 
+const char FUNC_DEF_SUBGRAPH_COLOR[] = "blue";
+const char    WHILE_SUBGRAPH_COLOR[] = "cyan";
+const char     ELSE_SUBGRAPH_COLOR[] = "cyan";

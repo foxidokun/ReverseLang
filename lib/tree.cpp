@@ -494,6 +494,13 @@ static tree::node_t *load_subtree (const char **str)
 #undef TRY
 // -------------------------------------------------------------------------------------------------
 
+#define WRAP_SUBGRAPH(node_type, color)                                                            \
+if (node->type == tree::node_type_t::node_type)                                                    \
+{                                                                                                  \
+    fprintf (stream, "subgraph cluster_%d {\ncolor=%s;\n", subgraph_cnt, FUNC_DEF_SUBGRAPH_COLOR); \
+}
+
+
 static bool node_codegen (tree::node_t *node, void *void_params, bool)
 {
     assert (node   != nullptr && "invalid pointer");
@@ -521,20 +528,9 @@ static bool node_codegen (tree::node_t *node, void *void_params, bool)
         fprintf (stream, "node_%p -> node_%p\n", node, node->right);
     }
 
-    if (node->type == tree::node_type_t::FUNC_DEF)
-    {
-        fprintf (stream, "subgraph cluster_%d {\ncolor=blue;\n", subgraph_cnt);
-    }
-
-    if (node->type == tree::node_type_t::WHILE)
-    {
-        fprintf (stream, "subgraph cluster_%d {\ncolor=red;\n", subgraph_cnt);
-    }
-
-    if (node->type == tree::node_type_t::ELSE)
-    {
-        fprintf (stream, "subgraph cluster_%d {\ncolor=cyan;\n", subgraph_cnt);
-    }
+    WRAP_SUBGRAPH (FUNC_DEF, FUNC_DEF_SUBGRAPH_COLOR);
+    WRAP_SUBGRAPH (WHILE,       WHILE_SUBGRAPH_COLOR);
+    WRAP_SUBGRAPH (ELSE,         ELSE_SUBGRAPH_COLOR);
 
     return true;
 }
@@ -556,7 +552,6 @@ static bool middle_graph (tree::node_t *node, void *void_params, bool)
     {
         fprintf (stream, "} \nsubgraph cluster_else_%d {\ncolor=cyan;\n", subgraph_cnt);
     }
-
 
     return true;
 }
