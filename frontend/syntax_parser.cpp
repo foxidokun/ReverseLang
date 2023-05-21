@@ -267,11 +267,10 @@ static tree::node_t *GetWhileBlock (token_t **input_token, program_t *prog)
     PREPARE();
     tree::node_t *cond = nullptr;
 
-    CHECK_KEYWORD (WHILE);
-
     CHECK_KEYWORD (L_BRACKET);
-    TRY(cond = GetBody (&token, prog));
+    TRY (cond = GetExpression (&token, prog));
     CHECK_KEYWORD (R_BRACKET);
+    CHECK_KEYWORD (WHILE);
 
     CHECK_KEYWORD (OPEN_BLOCK);
     TRY (node = GetBody (&token, prog));
